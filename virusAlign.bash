@@ -14,14 +14,14 @@ for thisDir in data/*;do
 		mkdir -p $virusDir
 		#map HIV89.6 junctions virus? try just mapping total first
 		#~/installs/star/bin/Linux_x86_64/STAR   --runMode genomeGenerate   --runThreadN 24   --genomeDir ./ --sjdbGTFfile knownGene.gtf  --genomeFastaFiles *.fa --genomeSAindexNbases 4
-		~/installs/star/bin/Linux_x86_64/STAR   --runMode genomeGenerate   --runThreadN 24   --genomeDir $virusDir --genomeFastaFiles $virusFile --genomeSAindexNbases 4
+		~/installs/star/bin/Linux_x86_64/STAR   --runMode genomeGenerate   --runThreadN 24   --genomeDir $virusDir --genomeFastaFiles $virusFile --genomeSAindexNbases 4 --sjdbFileChrStartEnd $thisDir/sjdbFile.tsv
 	else
 		echo "$virusDir genome already built"
 	fi
 	for ii in $thisDir/*.fastq.gz;do
 		echo $ii
 		base=$(basename $ii)
-		outFile=work/align/${base%_trim.fastq.gz}_virus
+		outFile=work/virusAlign/${base%_trim.fastq.gz}_virus
 		finalFile=$outFile.bam
 		if [ ! -f "$finalFile" ];then
 			date
