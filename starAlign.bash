@@ -14,7 +14,14 @@ for ii in data/*/*.fastq.gz;do
 		echo "Unzipped"
 		date
 		echo "Aligning"
-		~/installs/star/bin/Linux_x86_64/STAR --genomeDir ~/installs/star/index/  --runThreadN 24 --readFilesIn work/unzipped.fastq --outFileNamePrefix $outFile.
+    if [[ $ii =~ SIV ]];then
+      echo "Aligning to monkey"
+      index=~/installs/star/mac/
+    else
+      echo "Aligning to human"
+      index=~/installs/star/index/
+    fi
+		~/installs/star/bin/Linux_x86_64/STAR --genomeDir $index  --runThreadN 24 --readFilesIn work/unzipped.fastq --outFileNamePrefix $outFile.
 		echo "Sorting"
 		samtools view -bS "$outFile.Aligned.out.sam" > work/tmp.bam
 		samtools sort -m 5000000000 work/tmp.bam $outFile #use ~5G of RAM
