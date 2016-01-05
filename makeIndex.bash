@@ -4,7 +4,7 @@ cd index
 rsync -avzP rsync://hgdownload.cse.ucsc.edu/goldenPath/hg38/chromosomes/ .
 zcat ../knownGene.gtf.gz > knownGene.gtf  #downloaded from ucsc table browser
 for ii in *.fa.gz;do
-	zcat $ii > ${ii%.gz}
+  zcat $ii > ${ii%.gz}
 done
 ../bin/Linux_x86_64/STAR   --runMode genomeGenerate   --runThreadN 24   --genomeDir ./ --sjdbGTFfile knownGene.gtf  --genomeFastaFiles *.fa
 rm *.fa
