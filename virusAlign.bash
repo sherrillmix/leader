@@ -29,7 +29,7 @@ for thisDir in data/*;do
 			echo "Unzipped"
 			date
 			echo "Aligning"
-			~/installs/star/bin/Linux_x86_64/STAR --genomeDir $virusDir  --runThreadN 4 --readFilesIn work/unzipped_virus.fastq --outFileNamePrefix $outFile.
+			~/installs/star/bin/Linux_x86_64/STAR --genomeDir $virusDir  --runThreadN 20 --readFilesIn work/unzipped_virus.fastq --outFileNamePrefix $outFile.
 			echo "Sorting"
 			samtools view -bS "$outFile.Aligned.out.sam" > work/tmp_virus.bam
 			samtools sort -m 5000000000 work/tmp_virus.bam $outFile #use ~5G of RAM
