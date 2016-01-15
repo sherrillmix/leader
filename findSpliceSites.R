@@ -22,6 +22,16 @@ findSplicePairings<-function(hiv896,da,target){
   return(pairings)
 }
 
+
+findLocations<-function(hiv896,pos,target,window=15){
+  surrounds<-substring(hiv896,pos-window,pos+window)
+  aligns<-mapply(function(x,pos)levenAlign(x,target,trimOuterGaps=TRUE,substring2=TRUE),surrounds,pos,SIMPLIFY=FALSE,USE.NAMES=FALSE)
+  dists<-sapply(aligns,function(x)mean(strsplit(x[[1]],'')[[1]]==strsplit(x[[2]],'')[[1]]))
+  alignStart<-mapply(function(align,pos)gap2NoGap(align[[1]],noGap2Gap(align[[2]],pos)),aligns,window+1)
+  starts<-sapply(aligns,attr,'start')+alignStart-1
+  return(data.frame('start'=starts,'dist'=dists,'ref'=sapply(aligns,'[[',1),'target'=sapply(aligns,'[[',1)))
+}
+
 hivFasta<-sapply(list.files('data','HIV',full.names=TRUE),list.files,'fasta',full.names=TRUE)
 for(fasta in hivFasta){
   message(fasta)
@@ -36,6 +46,15 @@ for(fasta in hivFasta){
   outFile<-sprintf('%s/sjdbFile.tsv',dirname(fasta))
   print(pairings)
   write.table(pairings,outFile,row.names=FALSE,quote=FALSE,col.names=FALSE)
+  #work on start sites
+  prots<-read.csv('hiv896/prots.csv',stringsAsFactors=FALSE)
+  prots<-prots[!prots$isPolyProtein,]
+  protStarts<-findLocations(hiv896,prots$start,target$seq,window=30)
+  protStarts$codon<-substring(target$seq,protStarts$start,protStarts$start+2)
+  prots$tss<-protStarts$start
+  if(any(protStarts$codon!='ATG'&prots$name!='Pol'))stop(simpleError('Problem finding protein'))
+  outFile<-sprintf('%s/prots.csv',dirname(fasta))
+  write.csv(prots[,c('name','desc','tss')],outFile,row.names=FALSE)
 }
 
 sivFasta<-sapply(list.files('data','SIV',full.names=TRUE),list.files,'fasta',full.names=TRUE)
@@ -55,6 +74,17 @@ for(fasta in sivFasta){
   outFile<-sprintf('%s/sjdbFile.tsv',dirname(fasta))
   print(pairings)
   write.table(pairings,outFile,row.names=FALSE,quote=FALSE,col.names=FALSE)
+  annot<-read.csv(list.files(dirname(fasta),'Annotations.csv$',full.names=TRUE),stringsAsFactors=FALSE)
+  prots<-annot[grepl('START',annot$Name)|grepl('ORF',annot$Type),]
+  prots$tss<-as.numeric(gsub(',','',prots$Minimum))
+  prots<-prots[!grepl('exon2',prots$Name)&prots$Name!='Protease',]
+  prots$codon<-substring(siv,prots$tss,prots$tss+2)
+  if(any(protStarts$codon!='ATG'&prots$name!='Pol'))stop(simpleError('Problem finding protein'))
+  outFile<-sprintf('%s/prots.csv',dirname(fasta))
+  prots$name<-sub('_.*$','',tolower(prots$Name))
+  prots<-prots[!duplicated(prots$name),]
+  prots$desc<-prots$Name
+  write.csv(prots[,c('name','desc','tss')],outFile,row.names=FALSE)
 }
 
 
