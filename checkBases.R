@@ -1,6 +1,7 @@
 
 source("~/scripts/R/dna.R")
 library(parallel)
+library(dnaplotr)
 getBaseCounts<-function(bamFile){
   outFile<-sub('bam$','baseCount.gz',bamFile)
   message(bamFile,"->",outFile)
@@ -51,47 +52,84 @@ allBaseCounts<-do.call(rbind,baseCounts)
 interestingIds<-unlist(apply(diverseRefPos,1,function(x)which(allBaseCounts$ref==x[1]&allBaseCounts$pos==as.numeric(x[2]))))
 
 diverseBases<-allBaseCounts[interestingIds,!colnames(allBaseCounts) %in% c('n','diversity',nBases)]
-diffBases<-lapply(baseCounts,function(x){
+diffBases<-do.call(rbind,lapply(baseCounts,function(x){
   x[x$refBase!=x$maxBase&x$diversity<.5,!colnames(x) %in% c('n','diversity',nBases)]
-})
+}))
 diverseBases<-diverseBases[order(diverseBases$ref,diverseBases$pos,diverseBases$file),]
 diverseBases$isDiverse<-diverseBases$maxProp<.8
 write.csv(diverseBases,'out/diverseBases.csv',row.names=FALSE)
-write.csv(do.call(rbind,diffBases[treatOrder]),'out/diffBases.csv',row.names=FALSE)
+write.csv(diffBases,'out/diffBases.csv',row.names=FALSE)
 
 
 treatOrder<-order(sub('(Total[1-2])(.*)','\\2\\1',names(baseCounts)))
 pdf('out/bulkRnaCoverage.pdf',width=12)
-for(ii in names(baseCounts)[treatOrder]){
-  par(mar=c(2.5,5,1.1,.5))
-  pCov<-apply(baseCounts[[ii]][,pBases],1,sum)
-  nCov<-apply(baseCounts[[ii]][,nBases],1,sum)
-  pos<-baseCounts[[ii]]$pos
-  yLim<-range(c(pCov,nCov))
-  xLim<-range(pos)
-  scale<-1000
-  plot(1,1,type='n',xlim=xLim,ylim=yLim/scale,ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii)
-  title(ylab=sprintf('Coverage (x%d)',scale),mgp=c(3.5,1,0))
-  lines(pos,pCov/scale,col='#4daf4a',lwd=2)
-  lines(pos,nCov/scale,col='#ff7f00',lwd=2)
-  legend('topright',c('Positive','Negative'),col=c("#4daf4a",'#ff7f00'),lwd=2,inset=.02)
-  juncs<-read.table(juncFiles[ii])
-  abline(v=unique(juncs$V2),col='#0000FF66',lty=2)
-  abline(v=unique(juncs$V3),col='#FF000066',lty=2)
-  plot(1,1,type='n',xlim=xLim,ylim=log10(yLim+1),ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii,yaxt='n')
-  title(ylab=sprintf('Coverage',scale),mgp=c(3.5,1,0))
-  lines(pos,log10(pCov+1),col='#4daf4a',lwd=2)
-  lines(pos,log10(nCov+1),col='#ff7f00',lwd=2)
-  legend('topright',c('Positive','Negative'),col=c("#4daf4a",'#ff7f00'),lwd=2,inset=.02)
-  abline(v=unique(juncs$V2),col='#0000FF66',lty=2)
-  abline(v=unique(juncs$V3),col='#FF000066',lty=2)
-  prettyY<-pretty(log10(yLim+1))
-  axis(2,c(0,log10(10^prettyY+1)),c(0,sapply(prettyY,function(x)ifelse(x<=2,10^x,as.expression(bquote(10^.(x)))))),las=1)
-  #plot(pos,nCov,type='l',xlim=xLim,ylim=range(nCov),ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii,lwd=2)
-  #title(ylab='Negative strand coverage',mgp=c(3.5,1,0))
-}
+  for(ii in names(baseCounts)[treatOrder]){
+    par(mar=c(2.5,5,1.1,.5))
+    pCov<-apply(baseCounts[[ii]][,pBases],1,sum)
+    nCov<-apply(baseCounts[[ii]][,nBases],1,sum)
+    pos<-baseCounts[[ii]]$pos
+    yLim<-range(c(pCov,nCov))
+    xLim<-range(pos)
+    scale<-1000
+    plot(1,1,type='n',xlim=xLim,ylim=yLim/scale,ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii)
+    title(ylab=sprintf('Coverage (x%d)',scale),mgp=c(3.5,1,0))
+    lines(pos,pCov/scale,col='#4daf4a',lwd=2)
+    lines(pos,nCov/scale,col='#ff7f00',lwd=2)
+    legend('topright',c('Positive','Negative'),col=c("#4daf4a",'#ff7f00'),lwd=2,inset=.02)
+    juncs<-read.table(juncFiles[ii])
+    abline(v=unique(juncs$V2),col='#0000FF66',lty=2)
+    abline(v=unique(juncs$V3),col='#FF000066',lty=2)
+    plot(1,1,type='n',xlim=xLim,ylim=log10(yLim+1),ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii,yaxt='n')
+    title(ylab=sprintf('Coverage',scale),mgp=c(3.5,1,0))
+    lines(pos,log10(pCov+1),col='#4daf4a',lwd=2)
+    lines(pos,log10(nCov+1),col='#ff7f00',lwd=2)
+    legend('topright',c('Positive','Negative'),col=c("#4daf4a",'#ff7f00'),lwd=2,inset=.02)
+    abline(v=unique(juncs$V2),col='#0000FF66',lty=2)
+    abline(v=unique(juncs$V3),col='#FF000066',lty=2)
+    prettyY<-pretty(log10(yLim+1))
+    axis(2,c(0,log10(10^prettyY+1)),c(0,sapply(prettyY,function(x)ifelse(x<=2,10^x,as.expression(bquote(10^.(x)))))),las=1)
+    #plot(pos,nCov,type='l',xlim=xLim,ylim=range(nCov),ylab='',xlab='Virus base position',las=1,mgp=c(1.5,.5,0),main=ii,lwd=2)
+    #title(ylab='Negative strand coverage',mgp=c(3.5,1,0))
+  }
 dev.off()
 
+
+pullRegionReads<-function(bamFile,region,onlyUngapped=TRUE){
+  output<-strsplit(system(sprintf('samtools view %s %s',bamFile,region),intern=TRUE),'\t')
+  names<-sapply(output,'[[',1)
+  cigars<-sapply(output,'[[',6)
+  starts<-sapply(output,'[[',4)
+  seqs<-sapply(output,'[[',10)
+  unspliced<-grepl('^[0-9MS]+$',cigars)
+  badSpliced<-grepl('[0-9][0-9]+[IDN]',cigars)
+  seqs<-seqs[unspliced]
+  starts<-as.numeric(starts[unspliced])
+  names<-names[unspliced]
+  start<-min(starts)
+  ends<-starts+nchar(seqs)-1
+  end<-max(ends)
+  out<-rep(paste(rep('.',end-start+1),collapse=''),length(starts))
+  substring(out,starts-start+1,ends-start+1)<-seqs
+  return(list('reads'=out,'start'=start,'names'=names))
+}
+message("Pulling reads for changed bases")
+diffReads<-lapply(split(diffBases,1:nrow(diffBases)),function(x){
+  message(x$ref,' ',x$pos)
+  pullRegionReads(sprintf('work/virusAlign/%s_virus.bam',x$file),sprintf('%s:%d-%d',x$ref,x$pos-25,x$pos+25))
+})
+diverseReads<-mclapply(split(diverseBases,1:nrow(diverseBases)),function(x){
+  message(x$ref,' ',x$pos)
+  pullRegionReads(sprintf('work/virusAlign/%s_virus.bam',x$file),sprintf('%s:%d-%d',x$ref,x$pos-25,x$pos+25))
+},mc.cores=10)
+
+mapply(function(x,reads){
+  message(x$ref,' ',x$pos)
+  outFile<-sprintf('out/weirdBases/%s_%d_%s.png',x$ref,x$pos,x$file) 
+  png(outFile,width=2000,height=2000)
+    plotDNA(reads[['reads']],xStart=reads[['start']],main=sprintf('%s_%d_%s.png',x$ref,x$pos,x$file))
+    abline(v=x$pos+c(-.5,.5),lty=2,lwd=2)
+  dev.off()
+},c(split(diffBases,1:nrow(diffBases)),split(diverseBases,1:nrow(diverseBases))),c(diffReads,diverseReads))
 
 #library(levenR)
 #library(dnaplotr)
