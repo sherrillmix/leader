@@ -94,29 +94,35 @@ pdf('out/bulkRnaCoverage.pdf',width=12)
 dev.off()
 
 
-pullRegionReads<-function(bamFile,region,onlyUngapped=TRUE){
+pullRegionReads<-function(bamFile,region,onlyUngapped=TRUE,process=TRUE){
   output<-strsplit(system(sprintf('samtools view %s %s',bamFile,region),intern=TRUE),'\t')
+  if(!process)return(output)
   names<-sapply(output,'[[',1)
   cigars<-sapply(output,'[[',6)
   starts<-sapply(output,'[[',4)
   seqs<-sapply(output,'[[',10)
-  unspliced<-grepl('^[0-9MS]+$',cigars)
+  unspliced<-grepl('^[0-9MHS]+$|^*$',cigars)
   badSpliced<-grepl('[0-9][0-9]+[IDN]',cigars)
   seqs<-seqs[unspliced]
   starts<-as.numeric(starts[unspliced])
   names<-names[unspliced]
+  cigars<-cigars[unspliced]
+  startSs<-as.numeric(sub('^([0-9]+)S.*$','\\1',ifelse(grepl('^[0-9]+S',cigars),cigars,'0S'))) 
+  starts<-starts-startSs
   start<-min(starts)
   ends<-starts+nchar(seqs)-1
   end<-max(ends)
   out<-rep(paste(rep('.',end-start+1),collapse=''),length(starts))
   substring(out,starts-start+1,ends-start+1)<-seqs
-  return(list('reads'=out,'start'=start,'names'=names))
+  names(out)<-names
+  return(list('reads'=out,'start'=start))
 }
 message("Pulling reads for changed bases")
 diffReads<-lapply(split(diffBases,1:nrow(diffBases)),function(x){
   message(x$ref,' ',x$pos)
   pullRegionReads(sprintf('work/virusAlign/%s_virus.bam',x$file),sprintf('%s:%d-%d',x$ref,x$pos-25,x$pos+25))
 })
+
 diverseReads<-mclapply(split(diverseBases,1:nrow(diverseBases)),function(x){
   message(x$ref,' ',x$pos)
   pullRegionReads(sprintf('work/virusAlign/%s_virus.bam',x$file),sprintf('%s:%d-%d',x$ref,x$pos-25,x$pos+25))
@@ -130,6 +136,15 @@ mapply(function(x,reads){
     abline(v=x$pos+c(-.5,.5),lty=2,lwd=2)
   dev.off()
 },c(split(diffBases,1:nrow(diffBases)),split(diverseBases,1:nrow(diverseBases))),c(diffReads,diverseReads))
+
+
+
+weirdReads<-diverseReads[[6]][[1]][nchar(sub('[^.].*$','',diverseReads[[6]][[1]]))==64]                                                                                                                   
+png('test.png')
+plotDNA(weirdReads)
+dev.off()
+problemReads<-with(diverseBases[6,],pullRegionReads(sprintf('work/virusAlign/%s_virus.bam',file),sprintf('%s:%d-%d',ref,pos-25,pos+25),process=FALSE))
+problemReads<-problemReads[sapply(problemReads,'[[',1)%in% names(weirdReads)]
 
 #library(levenR)
 #library(dnaplotr)
