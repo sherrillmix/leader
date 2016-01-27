@@ -97,14 +97,33 @@ sampleNames<-sub('^[^_]+_','',names(bp28))
 treats<-sub('[0-9]_.*$','',names(bp28))
 treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
 names(treatCols)<-unique(treats)
-pdf('out/28bp.pdf',width=8)
+pdf('out/28bp.pdf',width=16)
   for(ii in sampleNames){
     theseTreats<-treats[sampleNames==ii]
     theseStarts<-bp28[sampleNames==ii]
     ylim<-range(unlist(theseStarts))
-    plot(1,1,type='n',ylim=ylim,xlim=c(1,length(theseStarts[[1]])))
+    prots<-read.csv(protFiles[names(theseStarts)[1]])
+    plot(1,1,type='n',ylim=ylim,xlim=c(1,length(theseStarts[[1]])),main=ii,xlab='Position',ylab='Read count')
+    abline(v=prots$tss-12,col='#00000033',lty=2)
     mapply(function(x,col)lines(1:length(x),x,col=col),theseStarts,treatCols[theseTreats])
     legend('top',legend=names(treatCols),col=treatCols,lty=1)
+  }
+dev.off()
+
+pdf('out/28bp_prot.pdf',width=8)
+  for(ii in sampleNames){
+    theseTreats<-treats[sampleNames==ii]
+    theseStarts<-bp28[sampleNames==ii]
+    prots<-read.csv(protFiles[names(theseStarts)[1]])
+    prots<-prots[order(prots$tss),]
+    for(jj in 1:nrow(prots)){
+      startSubset<-lapply(theseStarts,function(x)x[prots[jj,'tss']+-40:40])
+      ylim<-range(unlist(startSubset)+1)
+      plot(1,1,type='n',ylim=ylim,xlim=c(-40,40),log='y',main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
+      abline(v=-12,lty=2,col='#00000033')
+      mapply(function(x,col)lines(-40:40,x+1,col=col),startSubset,treatCols[theseTreats])
+      legend('top',legend=names(treatCols),col=treatCols,lty=1,inset=.01)
+    }
   }
 dev.off()
 
