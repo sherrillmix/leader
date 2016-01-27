@@ -46,6 +46,29 @@ refFiles<-sapply(dirs,function(x)paste(allData[grepl('fasta$',allData$file)&allD
 protFiles<-sapply(dirs,function(x)paste(allData[grepl('^prots.csv$',allData$file)&allData$dir==x,c('dir','file')],collapse='/'))
 names(refFiles)<-names(protFiles)<-names(rnaStarts)
 
+plotStarts<-function(rna,prot,nearbyBases=prot[,'tss']+-50:25,nearbyBases2=prot[,'tss']+-25:50,main=prot[,'name']){
+  selectStarts<-rna[as.character(nearbyBases),as.character(nearbyBases2)]
+  logData<-log10(selectStarts+1)
+  breaks<-seq(-1e-9,max(logData)+1e-9,length.out=101)
+  prettyLabs<-unique(round(pretty(range(logData))))
+  prettyLabs<-prettyLabs[prettyLabs<=max(breaks)]
+  image(nearbyBases,nearbyBases2,logData,col=cols,xlab='',ylab='End position',main=main,las=1,breaks=breaks,mgp=c(2.7,1,0))
+  title(xlab='Start position',mgp=c(2.2,1,0))
+  abline(v=prot[,'tss']-12,h=prot[,'tss']+16,col='#00000033',lty=2)
+  abline(v=prot[,'tss']-12-28,h=prot[,'tss']+16-28,col='#00000033',lty=3)
+  abline(28,1,col='#00000022')
+  #abline(v=prots[-jj,'tss']-12,h=prots[-jj,'tss']+16,col='#00000033',lty=3)
+  insetPos<-c(grconvertX(0.01,'nfc','user'),grconvertY(0.025,'nfc','user'),grconvertX(0.4,'nfc','user'),grconvertY(0.045,'nfc','user'))
+  breakPos<-(breaks-min(breaks))/max(breaks-min(breaks))*(insetPos[3]-insetPos[1])+insetPos[1]
+  rect(breakPos[-1]+.1,insetPos[2],breakPos[-length(breakPos)],insetPos[4],col=cols,xpd=NA,border=NA)
+  rect(insetPos[1],insetPos[2],insetPos[3],insetPos[4],xpd=NA)
+  prettyPos<-(ifelse(prettyLabs==0,0,log10(10^prettyLabs+1))-min(breaks))/max(breaks-min(breaks))*(insetPos[3]-insetPos[1])+insetPos[1]
+  segments(prettyPos,insetPos[2],prettyPos,insetPos[2]-diff(insetPos[c(2,4)])*.1,xpd=NA)
+  text(prettyPos,insetPos[2]-diff(insetPos[c(2,4)])*.175,ifelse(prettyLabs==0,0,10^prettyLabs),xpd=NA,adj=c(.5,1),cex=.85)
+  text(mean(insetPos[c(1,3)]),insetPos[4]+diff(insetPos[c(2,4)])*.1,"Read count",xpd=NA,adj=c(.5,0))
+}
+
+
 for(ii in names(rnaStarts)){
   message(ii)
   if(FALSE){
@@ -62,18 +85,28 @@ for(ii in names(rnaStarts)){
   cols<-rev(heat.colors(100))
   pdf(outFile)
     for(jj in 1:nrow(prots)){
-      nearbyBases<-prots[jj,'tss']+-25:75
-      selectStarts<-rnaStarts[[ii]][as.character(nearbyBases),as.character(nearbyBases)]
-      image(nearbyBases,nearbyBases,log10(selectStarts+1),col=cols,xlab='Start',ylab='End',main=prots[jj,'name'],las=1)
-      abline(v=prots[jj,'tss']-12,h=prots[jj,'tss']+16,col='#00000033',lty=2)
-      abline(v=prots[-jj,'tss']-12,h=prots[-jj,'tss']+16,col='#00000033',lty=3)
+      plotStarts(rnaStarts[[ii]],prots[jj,],main=sprintf("%s %s",ii,prots[jj,'name']))
     }
     nearbyBases<-1:(prots[1,'tss']+18)
-    selectStarts<-rnaStarts[[ii]][as.character(nearbyBases),as.character(nearbyBases)]
-    image(nearbyBases,nearbyBases,log10(selectStarts+1),col=cols,xlab='Start',ylab='End',main="Leader",las=1)
-    abline(v=prots[1,'tss']-12,h=prots[1,'tss']+16,col='#00000033',lty=2)
+    plotStarts(rnaStarts[[ii]],prots[1,],nearbyBases,nearbyBases,sprintf("%s leader",ii))
   dev.off()
 }
+
+bp28<-lapply(rnaStarts[!grepl('Total',names(rnaStarts))],function(rs)sapply(1:(nrow(rs)-28),function(x)rs[x,x+27]))
+sampleNames<-sub('^[^_]+_','',names(bp28))
+treats<-sub('[0-9]_.*$','',names(bp28))
+treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
+names(treatCols)<-unique(treats)
+pdf('out/28bp.pdf',width=8)
+  for(ii in sampleNames){
+    theseTreats<-treats[sampleNames==ii]
+    theseStarts<-bp28[sampleNames==ii]
+    ylim<-range(unlist(theseStarts))
+    plot(1,1,type='n',ylim=ylim,xlim=c(1,length(theseStarts[[1]])))
+    mapply(function(x,col)lines(1:length(x),x,col=col),theseStarts,treatCols[theseTreats])
+    legend('top',legend=names(treatCols),col=treatCols,lty=1)
+  }
+dev.off()
 
 
 
