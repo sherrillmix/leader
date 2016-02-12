@@ -1,10 +1,14 @@
+library(parallel)
+source("~/scripts/R/dna.R")
 
 getHuman<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
   counts<-lapply(regions,function(region){
     reg<-parseRegion(region)
     cmd<-sprintf('~/.local/bin/getstartends %s --region %s --maxGaps 3',bamFile,region)
     output<-system(cmd,intern=TRUE)
-    out<-read.csv(textConnection(output))
+    inCon<-textConnection(output)
+    out<-read.csv(inCon)
+    close(inCon)
     outTable<-unlist(table(out[out$end-out$start+1 %in% sizeRange & out$start>=reg$start&out$start<=reg$end & out$strand %in% strand,'start']))
     outVector<-rep(0,reg$end-reg$start+1)
     names(outVector)<-reg$start:reg$end
@@ -16,8 +20,14 @@ getHuman<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
   return(counts)
 }
 
-if(!exists('knownGenes'))knownGenes<-read.table("ref/knownGene.gtf.gz",stringsAsFactors=FALSE)
 
+if(!exists('knownGenes'))knownGenes<-read.table("ref/knownGene.gtf.gz",stringsAsFactors=FALSE)
+dataDir<-'work/align/'
+allRnaFiles<-list.files(dataDir,'\\.bam$')
+names(allRnaFiles)<-sub('.bam$','',basename(allRnaFiles))
+sample<-sub('^[^_]+_','',names(allRnaFiles))
+
+if(FALSE){
 regs<-c( "ATF1"="uc001rww.5", "CD4"="uc001qqv.3", "ACTB"="uc003sot.5", "GAPDH"="uc001qop.4", "GPI"="uc002nvg.3")
 pdf('out/human.pdf',width=16)
 for(geneName in names(regs)){ 
@@ -27,7 +37,6 @@ for(geneName in names(regs)){
   gene<-knownGenes[knownGenes$V10==ucscId,]
   reg<-sprintf('%s:%d-%d',target$V1,ifelse(target$V7=='+',target$V4,target$V5)-100,ifelse(target$V7=='+',target$V4,target$V5)+100)
   targetFiles<-sub('_virus','',allRnaFiles[sample=='HIV_CH0694'])
-  dataDir<-'work/align/'
   humanStarts<-mclapply(sprintf("%s/%s",dataDir,targetFiles),function(x,...)getHuman(x,reg,strand=target$V7,sizeRange=if(grepl('Total',x))1:100 else 27:29)[[1]],mc.cores=12,mc.preschedule=FALSE)
   names(humanStarts)<-sub('_.*$','',targetFiles)
   treats<-sub('[0-9]$','',names(humanStarts))
@@ -43,6 +52,49 @@ for(geneName in names(regs)){
   #done plotting
 }
 dev.off()
+}
 
+
+lee<-read.csv('ref/sd01.csv',comment='#',stringsAsFactors=FALSE)
+library("TxDb.Hsapiens.UCSC.hg19.knownGene")
+library("Homo.sapiens")
+#x<-transcriptsBy(TxDb.Hsapiens.UCSC.hg19.knownGene,'gene')
+cds<-cdsBy(TxDb.Hsapiens.UCSC.hg19.knownGene,'tx',use.names=TRUE)
+fives<-fiveUTRsByTranscript(TxDb.Hsapiens.UCSC.hg19.knownGene,use.names=TRUE)
+#some cds dont have 5' UTR (assuming junk)
+cds<-cds[names(fives)]
+selector<-grepl('^chr[0-9XYM]+$',sapply(fives,function(x)as.character(seqnames(x)@values)[1]))
+cds<-cds[selector]
+fives<-fives[selector]
+coordToReg<-function(coord){
+  #may need to adjust start
+  sprintf('%s:%d-%d',seqnames(coord),start(coord),end(coord))
+}
+targetFiles<-sub('_virus','',allRnaFiles[sample=='HIV_CH0694'&!grepl('^Total',allRnaFiles)])
+dataDir<-'work/align/'
+
+startCounts<-mcmapply(function(five,cd,windowWidth=40,...){
+  cat('.')
+  strand<-strand(cd)@values[1]
+  if(any(strand(cd)!=strand)||any(strand(five)!=strand))stop(simpleError('Strand mismatch'))
+  closeFive<-five[c(cumsum(rev(width(five)))[-1],0)<windowWidth]
+  closeCd<-cd[c(0,cumsum(width(cd))[-length(cd)])<windowWidth]
+  if(strand=='+'){
+    newEnd<-start(closeCd)[length(closeCd)]+windowWidth-sum(width(closeCd)[-length(closeCd)])-1
+    end(closeCd)[length(closeCd)]<-min(newEnd,end(closeCd)[length(closeCd)])
+    newStart<-end(closeFive)[1]-(windowWidth-sum(width(closeFive)[-1]))+1
+    start(closeFive)[1]<-max(newStart,start(closeFive)[1])
+    regs<-c(sapply(closeFive,coordToReg),sapply(closeCd,coordToReg))
+  }else{
+    newEnd<-start(closeFive)[1]+windowWidth-sum(width(closeFive)[-1])-1
+    end(closeFive)[1]<-min(newEnd,end(closeFive)[1])
+    newStart<-end(closeCd)[length(closeCd)]-(windowWidth-sum(width(closeCd)[-length(closeCd)]))+1
+    start(closeCd)[length(closeCd)]<-max(newStart,start(closeCd)[length(closeCd)])
+    regs<-c(rev(sapply(closeCd,coordToReg)),rev(sapply(closeFive,coordToReg)))
+  }
+  humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,...)do.call(c,getHuman(x,regs,strand=strand,sizeRange=27:29))))
+  rownames(humanStarts)<-names(targetFiles)
+  return(humanStarts)
+},fives,cds,SIMPLIFY=FALSE,mc.cores=15)
 
 
