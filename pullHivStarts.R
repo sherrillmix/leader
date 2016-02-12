@@ -98,7 +98,7 @@ treats<-sub('[0-9]_.*$','',names(bp28))
 treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
 names(treatCols)<-unique(treats)
 pdf('out/28bp.pdf',width=16)
-  for(ii in sampleNames){
+  for(ii in unique(sampleNames)){
     theseTreats<-treats[sampleNames==ii]
     theseStarts<-bp28[sampleNames==ii]
     ylim<-range(unlist(theseStarts))
@@ -111,7 +111,7 @@ pdf('out/28bp.pdf',width=16)
 dev.off()
 
 pdf('out/28bp_prot.pdf',width=8)
-  for(ii in sampleNames){
+  for(ii in unique(sampleNames)){
     theseTreats<-treats[sampleNames==ii]
     theseStarts<-bp28[sampleNames==ii]
     prots<-read.csv(protFiles[names(theseStarts)[1]])
