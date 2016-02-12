@@ -73,6 +73,7 @@ coordToReg<-function(coord){
 targetFiles<-sub('_virus','',allRnaFiles[sample=='HIV_CH0694'&!grepl('^Total',allRnaFiles)])
 dataDir<-'work/align/'
 
+windowWidth<-40
 startCounts<-mcmapply(function(five,cd,windowWidth=40,...){
   cat('.')
   strand<-strand(cd)@values[1]
@@ -95,6 +96,28 @@ startCounts<-mcmapply(function(five,cd,windowWidth=40,...){
   humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,...)do.call(c,getHuman(x,regs,strand=strand,sizeRange=27:29))))
   rownames(humanStarts)<-names(targetFiles)
   return(humanStarts)
-},fives,cds,SIMPLIFY=FALSE,mc.cores=15)
+},fives,cds,SIMPLIFY=FALSE,mc.cores=15,MoreArgs=list(windowWidth=windowWidth))
 
+
+goodCounts<-startCounts[sapply(startCounts,sum)>50&sapply(startCounts,ncol)==windowWidth*2]
+goodProp<-lapply(goodCounts,function(x)t(apply(x,1,function(y)if(sum(y)>4)y/sum(y) else rep(NA,length(y)))))
+library(abind)
+allProps<-do.call(abind,c(goodProp,list(along=3)))
+meanProp<-apply(allProps,c(1,2),mean,na.rm=TRUE)
+
+treats<-sub('[0-9]_.*$','',rownames(meanProp))
+treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
+names(treatCols)<-unique(treats)
+
+pdf('out/meanProps.pdf',height=5,width=7)
+  par(mar=c(4,4,.1,.1))
+  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab='Mean percent of reads',las=1)
+  for(ii in 1:nrow(meanProp)){
+    lines((-windowWidth+1):windowWidth,meanProp[ii,]*100,col=treatCols[treats[ii]],lwd=2)
+  }
+  legend('topright',legend=names(treatCols),col=treatCols,lty=1,inset=.01,lwd=2)
+  #abline(v=1,lty=2)
+  abline(v=-11,lty=2)
+  abline(v=-11+seq(3,36,3),lty=3,col='#00000055')
+dev.off()
 
