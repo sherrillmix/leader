@@ -16,10 +16,10 @@ for ii in data/*/*.fastq.gz;do
     echo "Aligning"
     if [[ $ii =~ SIV ]];then
       echo "Aligning to monkey"
-      index=~/installs/star/mac/
+      index=index/mac/
     else
       echo "Aligning to human"
-      index=~/installs/star/index/
+      index=index/index/
     fi
     ~/installs/star/bin/Linux_x86_64/STAR --genomeDir $index  --runThreadN 24 --readFilesIn work/unzipped.fastq --outFileNamePrefix $outFile.
     echo "Sorting"
