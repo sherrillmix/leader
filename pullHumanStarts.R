@@ -10,7 +10,7 @@ getHuman<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
     inCon<-textConnection(output)
     out<-read.csv(inCon)
     close(inCon)
-    outTable<-unlist(table(out[out$end-out$start+1 %in% sizeRange & out$start>=reg$start&out$start<=reg$end & out$strand %in% strand,startEnd]))
+    outTable<-unlist(table(out[out$end-out$start+1 %in% sizeRange & out[,startEnd]>=reg$start&out[,startEnd]<=reg$end & out$strand %in% strand,startEnd]))
     outVector<-rep(0,reg$end-reg$start+1)
     names(outVector)<-reg$start:reg$end
     outVector[names(outTable)]<-outTable
@@ -111,7 +111,7 @@ startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,function(five,
   humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,...)do.call(c,naFillRegs(x,regs,naNs,strand=strand,sizeRange=27:29))))
   rownames(humanStarts)<-names(targetFiles)
   return(humanStarts)
-},fives,cds,SIMPLIFY=FALSE,mc.cores=18,MoreArgs=list(windowWidth=windowWidth))
+},fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(windowWidth=windowWidth))
 
 
 goodCounts<-startCounts[sapply(startCounts,sum,na.rm=TRUE)>50]
