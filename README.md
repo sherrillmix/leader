@@ -18,6 +18,10 @@ Align to SIV/HIV genome using STAR aligner
 ## Analysis
 ### checkBases.R
 Count the base identities per base and strand in the aligned virus files.
+### pullHivStarts.R
+Check start sites in HIV
+### pullHumanStarts.R
+Check start sites in human genes
 
 
 
