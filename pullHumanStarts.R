@@ -1,4 +1,5 @@
 library(parallel)
+library(abind)
 source("~/scripts/R/dna.R")
 
 getHuman<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
@@ -114,26 +115,46 @@ startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,function(five,
 },fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(windowWidth=windowWidth))
 
 
+allCounts<-do.call(abind,c(startCounts,list(along=3)))
+treatCounts<-apply(allCounts,1,sum,na.rm=TRUE)
 goodCounts<-startCounts[sapply(startCounts,sum,na.rm=TRUE)>50]
 #goodCounts<-startCounts[sapply(startCounts,sum,na.rm=TRUE)>50&sapply(fives,function(x)strand(x)@values[1])=='-']
 goodProp<-lapply(goodCounts,function(x)t(apply(x,1,function(y)if(sum(y,na.rm=TRUE)>4)ifelse(is.na(y),0,y)/sum(y,na.rm=TRUE) else rep(NA,length(y)))))
-library(abind)
 allProps<-do.call(abind,c(goodProp,list(along=3)))
 meanProp<-apply(allProps,c(1,2),mean,na.rm=TRUE)
+meanProp236<-apply(allProps[grep('CH0236',rownames(allProps)),,],c(1,2),mean,na.rm=TRUE)
+meanProp694<-apply(allProps[grep('CH0694',rownames(allProps)),,],c(1,2),mean,na.rm=TRUE)
 
-treats<-sub('[0-9]_.*$','',rownames(meanProp))
-treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
-names(treatCols)<-unique(treats)
 
-pdf('out/meanProps.pdf',height=5,width=7)
-  par(mar=c(4,4,.1,.1))
-  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab='Mean percent of reads',las=1)
+plotTreats<-function(meanProp){
+  treats<-sub('[0-9]_.*$','',rownames(meanProp))
+  treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
+  if(length(treatCols)==1)treatCols<-'black'
+  names(treatCols)<-unique(treats)
+  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab='Mean percent of reads',las=1,mgp=c(2,.8,0))
   for(ii in 1:nrow(meanProp)){
     lines((-windowWidth+1):windowWidth,meanProp[ii,]*100,col=treatCols[treats[ii]],lwd=2)
   }
-  legend('topright',legend=names(treatCols),col=treatCols,lty=1,inset=.01,lwd=2)
   #abline(v=1,lty=2)
   abline(v=-11,lty=2)
-  abline(v=-11+seq(3,36,3),lty=3,col='#00000055')
+  abline(v=-11+seq(3,12+100,3),lty=3,col='#00000033')
+  legend('topright',legend=names(treatCols),col=treatCols,lty=1,inset=.01,lwd=2,bg='white')
+}
+pdf('out/meanRiboProps.pdf',height=4,width=7)
+  par(mar=c(3,3,1.1,.1))
+  plotTreats(meanProp694)
+  title(main='HIV CH0694')
+dev.off()
+pdf('out/meanRiboByTreatment.pdf',height=4,width=7)
+  par(mar=c(3,3,1.1,.1))
+  for(ii in 1:nrow(allProps)){
+    message(ii)
+    thisGood<-startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>50)]
+    thisProp<-lapply(thisGood,function(x)t(apply(x,1,function(y)if(sum(y,na.rm=TRUE)>4)ifelse(is.na(y),0,y)/sum(y,na.rm=TRUE) else rep(NA,length(y)))))
+    propArray<-do.call(abind,c(thisProp,list(along=3)))
+    thisMean<-apply(propArray[ii,,,drop=FALSE],c(1,2),mean,na.rm=TRUE)
+    plotTreats(thisMean)
+    title(main=sprintf('%s (%s reads)',rownames(allProps)[ii],format(treatCounts[ii],big.mark=',')))
+  }
 dev.off()
 
