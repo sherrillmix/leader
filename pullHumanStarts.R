@@ -25,22 +25,24 @@ allCounts<-do.call(abind,c(startCounts,list(along=3)))
 treatCounts<-apply(allCounts,1,sum,na.rm=TRUE)
 goodCounts<-startCounts[sapply(startCounts,sum,na.rm=TRUE)>50]
 meanProp<-getMeanProp(goodCounts)
-meanProp236<-apply(allProps[grep('CH0236',rownames(allProps)),,],c(1,2),mean,na.rm=TRUE)
-meanProp694<-apply(allProps[grep('CH0694',rownames(allProps)),,],c(1,2),mean,na.rm=TRUE)
+meanProp236<-meanProp[grep('CH0236',rownames(meanProp)),]
+meanProp694<-meanProp[grep('CH0694',rownames(meanProp)),]
 
 pdf('out/meanRiboProps.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
   plotTreats(meanProp694)
   title(main='HIV CH0694')
+  plotTreats(meanProp236)
+  title(main='HIV CH0236')
 dev.off()
 
 pdf('out/meanRiboByTreatment.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
-  for(ii in 1:nrow(allProps)){
+  for(ii in 1:nrow(meanProp)){
     message(ii)
     thisMean<-getMeanProp(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>50)])[ii,,,drop=FALSE]
     plotTreats(thisMean)
-    title(main=sprintf('%s (%s reads)',rownames(allProps)[ii],format(treatCounts[ii],big.mark=',')))
+    title(main=sprintf('%s (%s reads)',rownames(meanProp)[ii],format(treatCounts[ii],big.mark=',')))
   }
 dev.off()
 
