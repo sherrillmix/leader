@@ -5,7 +5,6 @@ source("functions.R")
 library("TxDb.Hsapiens.UCSC.hg19.knownGene")
 library("Homo.sapiens")
 
-if(!exists('knownGenes'))knownGenes<-read.table("ref/knownGene.gtf.gz",stringsAsFactors=FALSE)
 dataDir<-'work/align/'
 allRnaFiles<-list.files(dataDir,'\\.bam$')
 names(allRnaFiles)<-sub('.bam$','',basename(allRnaFiles))
@@ -18,7 +17,7 @@ fives<-tmp[['fives']]
 rm(tmp)
 
 windowWidth<-100
-startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(windowWidth=windowWidth))
+startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(targetFiles=targetFiles,windowWidth=windowWidth))
 
 
 allCounts<-do.call(abind,c(startCounts,list(along=3)))
@@ -40,7 +39,7 @@ pdf('out/meanRiboByTreatment.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
   for(ii in 1:nrow(meanProp)){
     message(ii)
-    thisMean<-getMeanProp(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>50)])[ii,,,drop=FALSE]
+    thisMean<-getMeanProp(lapply(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>50)],function(x)x[ii,,drop=FALSE]))
     plotTreats(thisMean)
     title(main=sprintf('%s (%s reads)',rownames(meanProp)[ii],format(treatCounts[ii],big.mark=',')))
   }

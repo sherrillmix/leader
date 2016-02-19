@@ -43,7 +43,7 @@ getCdFives<-function(cds,fives){
   return(list('cds'=cds,'fives'=fives))
 }
 
-pullCdFiveRegion<-function(five,cd,windowWidth=40,...){
+pullCdFiveRegion<-function(five,cd,targetFiles,windowWidth=40,...){
   cat('.')
   strand<-strand(cd)@values[1]
   if(any(strand(cd)!=strand)||any(strand(five)!=strand))stop(simpleError('Strand mismatch'))
