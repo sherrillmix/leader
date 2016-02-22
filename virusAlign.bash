@@ -25,18 +25,18 @@ for thisDir in data/*;do
     finalFile=$outFile.bam
     if [ ! -f "$finalFile" ];then
       date
-      ./removeShort.py $ii >work/unzipped_virus.fastq
+      ./removeShort.py $ii >work/unzipped_${base}_virus.fastq
       echo "Unzipped"
       date
       echo "Aligning"
-      ~/installs/star/bin/Linux_x86_64/STAR --genomeDir $virusDir  --runThreadN 20 --readFilesIn work/unzipped_virus.fastq --outFileNamePrefix $outFile.
+      ~/installs/star/bin/Linux_x86_64/STAR --genomeDir $virusDir  --runThreadN 20 --readFilesIn work/unzipped_${base}_virus.fastq --outFileNamePrefix $outFile.
       echo "Sorting"
-      samtools view -bS "$outFile.Aligned.out.sam" > work/tmp_virus.bam
-      samtools sort -m 5000000000 work/tmp_virus.bam $outFile #use ~5G of RAM
+      samtools view -bS "$outFile.Aligned.out.sam" > work/tmp_${base}_virus.bam
+      samtools sort -m 5000000000 work/tmp_${base}_virus.bam $outFile #use ~5G of RAM
       samtools index $finalFile
       rm "$outFile.Aligned.out.sam"
-      rm work/unzipped_virus.fastq
-      rm work/tmp_virus.bam
+      rm work/unzipped_${base}_virus.fastq
+      rm work/tmp_${base}_virus.bam
       echo "Done"
     else
       echo "Already processed. Skipping."
