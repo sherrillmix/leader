@@ -66,7 +66,7 @@ pullCdFiveRegion<-function(five,cd,targetFiles,windowWidth=40,...){
   #if(strand=='+')revFunc<-function(y)lapply(y,function(z)z) else revFunc<-function(y)lapply(y,function(z)rev(z))
   #humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,revFunc,...)do.call(c,revFunc(getRegionStarts(x,regs,strand=strand,sizeRange=27:29))),revFunc=revFunc))
   naNs<-c(fiveN-windowWidth,windowWidth-cdN)
-  humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,...)do.call(c,naFillRegs(x,regs,naNs,strand=strand,sizeRange=27:29))))
+  humanStarts<-do.call(rbind,lapply(targetFiles,function(x,...)do.call(c,naFillRegs(x,regs,naNs,strand=strand,sizeRange=27:29))))
   rownames(humanStarts)<-names(targetFiles)
   return(humanStarts)
 }
@@ -93,3 +93,6 @@ getMeanProp<-function(goodCounts,singleRowLimit=5){
   return(meanProp)
 }
 
+nullOmit<-function(x){
+  x[!is.null(x)]
+}
