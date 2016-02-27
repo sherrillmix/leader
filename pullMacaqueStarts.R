@@ -21,7 +21,10 @@ rm(tmp)
 
 
 windowWidth<-100
-startCounts<-cacheOperation('work/macaqueStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(targetFiles=sprintf('%s/%s',dataDir,targetFiles),windowWidth=windowWidth))
+
+targets<-sprintf('%s/%s',dataDir,targetFiles)
+names(targets)<-names(targetFiles)
+startCounts<-cacheOperation('work/macaqueStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(targetFiles=targets,windowWidth=windowWidth))
 
 allCounts<-do.call(abind,c(startCounts,list(along=3)))
 colnames(allCounts)<-c(-100:-1,1:100)
@@ -62,7 +65,7 @@ pdf('out/macque_geneExamples.pdf',height=4,width=7)
 dev.off()
 
 for(ii in 1:nrow(meanProp)){
-  png(sprintf('out/pileups/macque_%d.png',ii),height=1000,width=2000,res=200)
+  png(sprintf('out/pileups/macque_%02d.png',ii),height=1000,width=2000,res=200)
     par(mar=c(3.5,3.5,1.1,.1))
     message(ii)
     thisCounts<-lapply(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>100)],function(x)x[ii,,drop=FALSE])
@@ -76,3 +79,7 @@ for(ii in 1:nrow(meanProp)){
 }
 
 
+#summary(allCounts['DMSO1_SIV_766WT',,2122]==startCounts[[2122]]['DMSO1_SIV_766WT',])
+#x<-system('samtools view work/align/DMSO1_SIV_766WT.bam chr9:13812594-13812627',intern=TRUE)
+#table(as.numeric(sapply(strsplit(x,'\t'),'[[',4)))
+#tail(startCounts[[2122]]['DMSO1_SIV_766WT',],20)

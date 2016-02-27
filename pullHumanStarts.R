@@ -17,7 +17,9 @@ fives<-tmp[['fives']]
 rm(tmp)
 
 windowWidth<-100
-startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(targetFiles=sprintf('%s/%s',dataDir,targetFiles),windowWidth=windowWidth))
+targets<-sprintf('%s/%s',dataDir,targetFiles)
+names(targets)<-names(targetFiles)
+startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=8,MoreArgs=list(targetFiles=targets,windowWidth=windowWidth))
 
 
 allCounts<-do.call(abind,c(startCounts,list(along=3)))
@@ -46,7 +48,7 @@ pdf('out/meanRiboByTreatment.pdf',height=4,width=7)
 dev.off()
 
 for(ii in 1:nrow(meanProp)){
-  png(sprintf('out/pileups/human_%d.png',ii),height=1000,width=2000,res=200)
+  png(sprintf('out/pileups/human_%02d.png',ii),height=1000,width=2000,res=200)
     par(mar=c(3.5,3.5,1.1,.1))
     message(ii)
     thisCounts<-lapply(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>100)],function(x)x[ii,,drop=FALSE])
