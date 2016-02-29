@@ -11,7 +11,7 @@ for ii in data/*/*.fastq.gz;do
   if [ ! -f "$finalFile" ];then
     date
     #from https://github.com/sherrillmix/dnapy/blob/master/dnapy/removeshort.py
-    removeShort $ii >work/${base}_host_unzipped.fastq
+    removeShort $ii -d 100000 -l 15>work/${base}_host_unzipped.fastq
     echo "Unzipped"
     date
     echo "Aligning"
