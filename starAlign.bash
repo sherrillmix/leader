@@ -10,7 +10,8 @@ for ii in data/*/*.fastq.gz;do
   finalFile=$outFile.bam
   if [ ! -f "$finalFile" ];then
     date
-    ./removeShort.py $ii >work/${base}_host_unzipped.fastq
+    #from https://github.com/sherrillmix/dnapy/blob/master/dnapy/removeshort.py
+    removeShort $ii >work/${base}_host_unzipped.fastq
     echo "Unzipped"
     date
     echo "Aligning"
@@ -24,7 +25,7 @@ for ii in data/*/*.fastq.gz;do
     ~/installs/star/bin/Linux_x86_64/STAR --genomeDir $index  --runThreadN 24 --readFilesIn work/${base}_host_unzipped.fastq --outFileNamePrefix $outFile.
     echo "Sorting"
     samtools view -bS "$outFile.Aligned.out.sam" > work/${base}_host_tmp.bam
-    samtools sort -m 5000000000 work/${base}_host_tmp.bam $outFile #use ~5G of RAM
+    samtools sort -m 9000000000 work/${base}_host_tmp.bam $outFile 
     samtools index $finalFile
     rm "$outFile.Aligned.out.sam"
     rm work/${base}_host_unzipped.fastq
