@@ -24,7 +24,7 @@ windowWidth<-100
 
 targets<-sprintf('%s/%s',dataDir,targetFiles)
 names(targets)<-names(targetFiles)
-startCounts<-cacheOperation('work/macaqueStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=12,MoreArgs=list(targetFiles=targets,windowWidth=windowWidth))
+startCounts<-cacheOperation('work/macaqueStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=6,MoreArgs=list(targetFiles=targets,windowWidth=windowWidth))
 
 allCounts<-do.call(abind,c(startCounts,list(along=3)))
 colnames(allCounts)<-c(-100:-1,1:100)
