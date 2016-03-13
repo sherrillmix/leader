@@ -2,6 +2,7 @@ source("~/scripts/R/dna.R")
 library(parallel)
 library(levenR)
 library(dnaplotr)
+source("functions.R")
 
 getStarts<-function(bamFile,fillMatrix=TRUE){
   outFile<-sub('bam$','starts.gz',bamFile)
@@ -44,7 +45,8 @@ allData<-data.frame('dir'=dirname(allData),'file'=basename(allData),stringsAsFac
 dirs<-allData[sapply(names(rnaStarts),grep,allData$file),'dir']
 refFiles<-sapply(dirs,function(x)paste(allData[grepl('fasta$',allData$file)&allData$dir==x,c('dir','file')],collapse='/'))
 protFiles<-sapply(dirs,function(x)paste(allData[grepl('^prots.csv$',allData$file)&allData$dir==x,c('dir','file')],collapse='/'))
-names(refFiles)<-names(protFiles)<-names(rnaStarts)
+spliceFiles<-sapply(dirs,function(x)paste(allData[grepl('^sjdbFile.tsv$',allData$file)&allData$dir==x,c('dir','file')],collapse='/'))
+names(refFiles)<-names(protFiles)<-names(spliceFiles)<-names(rnaStarts)
 
 plotStarts<-function(rna,prot,nearbyBases=prot[,'tss']+-50:25,nearbyBases2=prot[,'tss']+-25:50,main=prot[,'name']){
   selectStarts<-rna[as.character(nearbyBases),as.character(nearbyBases2)]
@@ -110,44 +112,103 @@ pdf('out/28bp.pdf',width=16)
   }
 dev.off()
 
-pdf('out/28bp_prot.pdf',width=8)
+pdf('out/prot_drugs.pdf',width=8)
   for(ii in unique(sampleNames)){
     theseTreats<-treats[sampleNames==ii]
     theseStarts<-bp28[sampleNames==ii]
     prots<-read.csv(protFiles[names(theseStarts)[1]])
     prots<-prots[order(prots$tss),]
     for(jj in 1:nrow(prots)){
-      startSubset<-lapply(theseStarts,function(x)x[prots[jj,'tss']+-40:40])
+      startSubset<-lapply(theseStarts,function(x)x[prots[jj,'tss']+-100:99])
       ylim<-range(unlist(startSubset)+1)
-      plot(1,1,type='n',ylim=ylim,xlim=c(-40,40),log='y',main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
+      plot(1,1,type='n',ylim=ylim,xlim=c(-100,99),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
       abline(v=-12,lty=2,col='#00000033')
-      mapply(function(x,col)lines(-40:40,x+1,col=col),startSubset,treatCols[theseTreats])
-      legend('top',legend=names(treatCols),col=treatCols,lty=1,inset=.01)
+      mapply(function(x,col)lines(-100:99,x+1,col=col),startSubset,ranjitColors[theseTreats])
+      legend('topright',legend=names(ranjitColors[names(ranjitColors)!='Total']),col=ranjitColors[names(ranjitColors)!='Total'],lty=1,inset=.01)
     }
   }
 dev.off()
 
 
+pdf('out/prot_ltmChx.pdf',width=8)
+  for(ii in unique(sampleNames)){
+    theseTreats<-treats[sampleNames==ii]
+    theseStarts<-bp28[sampleNames==ii]
+    theseLtm<-names(theseStarts)[grep('LTM',names(theseStarts))]
+    theseChx<-sub('LTM','CHX',theseLtm)
+    theseLtmChx<-mapply(function(x,y){
+      maxN<-max(length(x),length(y))
+      x<-x[1:maxN]
+      y<-y[1:maxN]
+      x[is.na(x)]<-0
+      y[is.na(y)]<-0
+      x/sum(x)-y/sum(y)
+    },theseStarts[theseLtm],theseStarts[theseChx],SIMPLIFY=FALSE)
+    prots<-read.csv(protFiles[names(theseStarts)[1]])
+    prots<-prots[order(prots$tss),]
+    for(jj in 1:nrow(prots)){
+      startSubset<-lapply(theseLtmChx,function(x)x[prots[jj,'tss']+-100:99])
+      ylim<-c(0,max(unlist(startSubset))*1000)
+      plot(1,1,type='n',ylim=ylim,xlim=c(-100,99),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Difference in LTM and CHX proportions (x1000)',las=1)
+      abline(v=-12,lty=2,col='#00000033')
+      mapply(function(x,col)lines(-100:99,1000*ifelse(x<0,0,x)),startSubset)
+      legend('topright',legend='LTM-CHX',col='black',lty=1,inset=.01)
+    }
+  }
+dev.off()
 
-ltmChx<-lapply(sampleNames,function(sample){
+
+ltmChx<-lapply(unique(sampleNames),function(sample){
   ltms<-names(bp28)[sampleNames==sample&treats=='LTM']
   chxs<-sub('LTM','CHX',ltms)
   ltmChx<-mapply(function(ltm,chx){
     n<-max(length(ltm),length(chx))
     ltm<-ltm[1:n]
     chx<-chx[1:n]
-    ltm/movingStat(ltm,max,1000)-chx/movingStat(chx,max,1000)
-    #ltm/sum(ltm)-chx/sum(chx)
+    #ltm/movingStat(ltm,max,100)-chx/movingStat(chx,max,100)
+    ltm/sum(ltm)-chx/sum(chx)
   },bp28[ltms],bp28[chxs])
   return(ltmChx)
 })
-pdf('test.pdf',width=10)
-plot(ifelse(ltmChx[[1]][,1]<.0001,.0001,ltmChx[[1]][,1]),type='l')
-abline(v=read.csv(protFiles[colnames(ltmChx[[1]])[1]])$tss-12,col='#FF000033')
+names(ltmChx)<-unique(sampleNames)
+
+pdf('out/virus_ltmChx.pdf',width=10)
+  for(ii in names(ltmChx)){
+    message(ii)
+    thisLtmChx<-ltmChx[[ii]]
+    thisLtmChx[is.na(thisLtmChx)]<-0
+    thisLtmChx<-ifelse(thisLtmChx<.0001,.0001,thisLtmChx)
+    ylim=range(thisLtmChx)
+    xlim=c(1,nrow(thisLtmChx))
+    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between LTM and CHX proportions',main=ii)
+    thisProts<-read.csv(protFiles[colnames(thisLtmChx)[1]])
+    thisProts<-thisProts[tolower(thisProts$name)!='pol',]
+    thisSplices<-read.table(spliceFiles[colnames(thisLtmChx)[1]])
+    thisDonors<-unique(thisSplices$V2)
+    thisAcceptors<-unique(thisSplices$V3)
+    abline(v=thisProts$tss-12,col='#FF000033')
+    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF')
+    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00')
+    box()
+    apply(thisLtmChx,2,lines,col='#00000099')
+  }
 dev.off()
 
 #read.csv(protFiles[ltms][1])
 #zz<-apply(ltmChx[[length(ltmChx)]]>0.001,2,which)
 #(read.csv(protFiles[ltms][1])$tss-12) %in% intersect(zz[[1]],zz[[2]])
+
+totals<-lapply(rnaStarts[grepl('Total',names(rnaStarts))],function(rs)apply(rs,2,sum))
+gagCounts<-sapply(names(totals),function(name){
+  prots<-read.csv(protFiles[name])
+  gag<-prots[prots$name=='gag','tss']
+  sum(totals[[name]][gag-100:100])
+})
+print(cbind('gag'=gagCounts,'total'=sapply(totals,sum),'propGagx1000'=round(gagCounts/sapply(totals,sum)*1000,3)))
+pdf('out/totalVirusCoverage.pdf')
+  for(ii in names(totals)){
+    plot(totals[[ii]],type='l',main=ii,log='y',ylab='Total RNA start counts',xlab='Genome position')
+  }
+dev.off()
 
 

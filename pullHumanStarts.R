@@ -28,6 +28,9 @@ goodCounts<-startCounts[sapply(startCounts,sum,na.rm=TRUE)>50]
 meanProp<-getMeanProp(goodCounts)
 meanProp236<-meanProp[grep('CH0236',rownames(meanProp)),]
 meanProp694<-meanProp[grep('CH0694',rownames(meanProp)),]
+geneCounts<-apply(allCounts,c(1,3),sum)
+geneCounts[is.na(geneCounts)]<-0
+totalCounts<-geneCounts[grep('Total',rownames(geneCounts)),]
 
 pdf('out/meanRiboProps.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
