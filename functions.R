@@ -4,10 +4,10 @@ getRegionStarts<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
   counts<-lapply(regions,function(region){
     reg<-parseRegion(region)
     cmd<-sprintf('~/.local/bin/getstartends %s --region %s --maxGaps 3',bamFile,region)
-    output<-system(cmd,intern=TRUE)
-    inCon<-textConnection(output)
-    out<-read.csv(inCon)
-    close(inCon)
+    #output<-system(cmd,intern=TRUE)
+    #inCon<-textConnection(output)
+    out<-read.csv(pipe(cmd),comment.char='',colClasses=c('character','integer','integer','character'),header=TRUE)
+    #close(inCon)
     outTable<-unlist(table(out[out$end-out$start+1 %in% sizeRange & out[,startEnd]>=reg$start&out[,startEnd]<=reg$end & out$strand %in% strand,startEnd]))
     outVector<-rep(0,reg$end-reg$start+1)
     names(outVector)<-reg$start:reg$end
