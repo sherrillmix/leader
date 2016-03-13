@@ -18,6 +18,7 @@ uniqReads<-cacheOperation('work/alignReadCounts.Rdat',sapply,bams,function(x){
 })
 
 
+if(FALSE){
 if(!all(names(bams) %in% names(fastqs))||!all(names(fastqs) %in% names(bams)))stop(simpleError('Mismatch between bam and fastq'))
 bamReadIds<-lapply(bams,function(bam){
   headBam<-system(sprintf('samtools view %s/%s|head -100000|cut -f1',alignDir,bam),intern=TRUE)
@@ -31,3 +32,4 @@ fastqReadIds<-cacheOperation('work/fastqIds.Rdat',lapply,fastqs[names(bams)],fun
 })
 
 if(!all(sapply(bamReadIds,length)==1)||!all(sapply(fastqReadIds,length)==1)||any(unlist(bamReadIds)!=unlist(fastqReadIds)))stop(simpleError('Read ids do not match in fastq and bam'))
+}

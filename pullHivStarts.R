@@ -92,7 +92,7 @@ for(ii in names(rnaStarts)){
   dev.off()
 }
 
-bp28<-lapply(rnaStarts[!grepl('Total',names(rnaStarts))],function(rs)sapply(1:(nrow(rs)-28),function(x)rs[x,x+27]))
+bp28<-lapply(rnaStarts[!grepl('Total',names(rnaStarts))],function(rs)sapply(1:(nrow(rs)-28),function(x)sum(rs[x,x+26:28])))
 sampleNames<-sub('^[^_]+_','',names(bp28))
 treats<-sub('[0-9]_.*$','',names(bp28))
 treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
@@ -127,5 +127,27 @@ pdf('out/28bp_prot.pdf',width=8)
   }
 dev.off()
 
+
+
+ltmChx<-lapply(sampleNames,function(sample){
+  ltms<-names(bp28)[sampleNames==sample&treats=='LTM']
+  chxs<-sub('LTM','CHX',ltms)
+  ltmChx<-mapply(function(ltm,chx){
+    n<-max(length(ltm),length(chx))
+    ltm<-ltm[1:n]
+    chx<-chx[1:n]
+    ltm/movingStat(ltm,sum,200)-chx/movingStat(chx,sum,200)
+    #ltm/sum(ltm)-chx/sum(chx)
+  },bp28[ltms],bp28[chxs])
+  return(ltmChx)
+})
+pdf('test.pdf');
+plot(ltmChx[[1]][,1])
+abline(v=read.csv(protFiles[colnames(ltmChx[[1]])[1]])$tss-12,col='#FF000033')
+dev.off()
+
+#read.csv(protFiles[ltms][1])
+#zz<-apply(ltmChx[[length(ltmChx)]]>0.001,2,which)
+#(read.csv(protFiles[ltms][1])$tss-12) %in% intersect(zz[[1]],zz[[2]])
 
 
