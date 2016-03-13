@@ -136,13 +136,13 @@ ltmChx<-lapply(sampleNames,function(sample){
     n<-max(length(ltm),length(chx))
     ltm<-ltm[1:n]
     chx<-chx[1:n]
-    ltm/movingStat(ltm,sum,200)-chx/movingStat(chx,sum,200)
+    ltm/movingStat(ltm,max,1000)-chx/movingStat(chx,max,1000)
     #ltm/sum(ltm)-chx/sum(chx)
   },bp28[ltms],bp28[chxs])
   return(ltmChx)
 })
-pdf('test.pdf');
-plot(ltmChx[[1]][,1])
+pdf('test.pdf',width=10)
+plot(ifelse(ltmChx[[1]][,1]<.0001,.0001,ltmChx[[1]][,1]),type='l')
 abline(v=read.csv(protFiles[colnames(ltmChx[[1]])[1]])$tss-12,col='#FF000033')
 dev.off()
 

@@ -1,3 +1,4 @@
+ranjitColors<-c('LTM'='red','CHX'='#008040','PatA'='blue','DMSO'='black','Total'='grey')
 
 getRegionStarts<-function(bamFile,regions,strand=c('+','-'),sizeRange=26:30){
   startEnd<-ifelse(all(strand=='-'),'end','start')
@@ -71,12 +72,14 @@ pullCdFiveRegion<-function(five,cd,targetFiles,windowWidth=40,...){
   return(humanStarts)
 }
 
-plotTreats<-function(meanProp){
+plotTreats<-function(meanProp,ylab='Mean percent of reads',treatCols=NULL){
   treats<-sub('[0-9]_.*$','',rownames(meanProp))
-  treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
-  if(length(treatCols)==1)treatCols<-'black'
-  names(treatCols)<-unique(treats)
-  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab='Mean percent of reads',las=1,mgp=c(2,.8,0))
+  if(is.null(treatCols)){
+    treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
+    if(length(treatCols)==1)treatCols<-'black'
+    names(treatCols)<-unique(treats)
+  }
+  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab=ylab,las=1,mgp=c(2,.8,0))
   for(ii in 1:nrow(meanProp)){
     lines((-windowWidth+1):windowWidth,meanProp[ii,]*100,col=treatCols[treats[ii]],lwd=2)
   }
