@@ -73,9 +73,13 @@ rownames(ltmProps)<-sub('LTM([0-9])','LTM-CHX\\1',rownames(ltmProps))
 
 pdf('out/ltm-chx.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
-  for(ii in 1:nrow(ltmProps)){
-    plotTreats(ltmProps[ii,,drop=FALSE],ylab='Difference between LTM and CHX proportions')
-    title(main=sprintf('%s',sub('LTM[0-9]-CHX[0-9]_','',rownames(ltmProps)[ii])))
+  for(ii in c('CH0694','CH0236')){
+    selector<-grep(ii,rownames(ltmProps))
+    if(ii=='CH0694')ylim<-c(0,max(meanProp694)*100)
+    else if(ii=='CH0236')ylim<-c(0,max(meanProp236)*100)
+    else stop(simpleError('Unknown virus'))
+    plotTreats(ltmProps[selector,,drop=FALSE],ylab='Difference between LTM and CHX proportions',ylim=ylim,treatCols=c('LTM-CHX'='orange'))
+    title(main=sprintf('%s',sub('LTM-CHX[0-9]_','',rownames(ltmProps)[selector][1])))
   }
 dev.off()
 

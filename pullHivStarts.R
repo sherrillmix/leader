@@ -112,6 +112,7 @@ pdf('out/28bp.pdf',width=16)
   }
 dev.off()
 
+window<-100
 pdf('out/prot_drugs.pdf',width=8)
   for(ii in unique(sampleNames)){
     theseTreats<-treats[sampleNames==ii]
@@ -125,7 +126,7 @@ pdf('out/prot_drugs.pdf',width=8)
     thisAUG<-gregexpr('ATG',thisRef$seq)[[1]]
     thisOneOff<-gregexpr('[CTG]TG|A[ACG]G|AT[CAT]',thisRef$seq)[[1]]
     for(jj in 1:nrow(prots)){
-      targetCoords<-prots[jj,'tss']+-100:99
+      targetCoords<-prots[jj,'tss']+-window:window
       startSubset<-lapply(theseStarts,function(x)x[targetCoords])
       nearestAcceptor<-max(c(-Inf,thisAcceptors[thisAcceptors<=prots[jj,'tss']]))
       nearestDonor<-min(c(Inf,thisDonors[thisDonors>=prots[jj,'tss']]))
@@ -133,8 +134,8 @@ pdf('out/prot_drugs.pdf',width=8)
       ylim<-range(unlist(startSubset)+1,na.rm=TRUE)
       plot(1,1,type='n',ylim=ylim,xlim=range(targetCoords),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
       abline(v=prots[jj,'tss']-12,lty=2,col='#00000033')
-      abline(v=prots[jj,'tss']+seq(-9,99,3),lty=3,col='#00000033')
-      mapply(function(x,col)lines(targetCoords,x+1,col=col),startSubset,ranjitColors[theseTreats])
+      abline(v=prots[jj,'tss']+seq(-9,window,3),lty=3,col='#00000033')
+      mapply(function(x,col)lines(targetCoords,x,col=col),startSubset,ranjitColors[theseTreats])
       if(nearestAcceptor>par('usr')[1])rect(par('usr')[1],par('usr')[3],nearestAcceptor,par('usr')[4],col='#00000055',border=NA)
       if(nearestDonor<par('usr')[2])rect(par('usr')[2],par('usr')[3],nearestDonor,par('usr')[4],col='#00000022',border=NA)
       for(tcl in c(.3))axis(1,thisOneOff-12,rep('',length(thisOneOff)),col='purple',lwd=0,tcl=tcl,lwd.tick=1)
@@ -144,8 +145,34 @@ pdf('out/prot_drugs.pdf',width=8)
   }
 dev.off()
 
+pdf('out/leader.pdf',width=8)
+  for(ii in unique(sampleNames)){
+    theseTreats<-treats[sampleNames==ii]
+    theseStarts<-bp28[sampleNames==ii]
+    prots<-read.csv(protFiles[names(theseStarts)[1]])
+    prots<-prots[order(prots$tss),]
+    thisSplices<-read.table(spliceFiles[names(theseStarts)[1]])
+    thisDonors<-unique(thisSplices$V2)
+    thisAcceptors<-unique(thisSplices$V3)
+    thisRef<-read.fa(refFiles[names(theseStarts)[1]])
+    thisAUG<-gregexpr('ATG',thisRef$seq)[[1]]
+    thisOneOff<-gregexpr('[CTG]TG|A[ACG]G|AT[CAT]',thisRef$seq)[[1]]
+    targetCoords<-1:(min(prots$tss)+50)
+    startSubset<-lapply(theseStarts,function(x)x[targetCoords])
+    ylim<-range(unlist(startSubset)+1,na.rm=TRUE)
+    plot(1,1,type='n',ylim=ylim/1000,xlim=range(targetCoords),main=sprintf('%s leader',ii),xlab='Position',ylab='Read count (1000x)',las=1)
+    abline(v=prots[,'tss']-12,lty=2,col='#00000033')
+    abline(v=thisDonors,lty=3,col='#00000033')
+    mapply(function(x,col)lines(targetCoords,x/1000,col=col),startSubset,ranjitColors[theseTreats])
+    for(tcl in c(.3))axis(1,thisOneOff-12,rep('',length(thisOneOff)),col='purple',lwd=0,tcl=tcl,lwd.tick=1)
+    for(tcl in c(.5))axis(1,thisAUG-12,rep('',length(thisAUG)),col='orange',lwd=0,tcl=tcl,lwd.tick=1)
+    legend('topright',legend=names(ranjitColors[names(ranjitColors)!='Total']),col=ranjitColors[names(ranjitColors)!='Total'],lty=1,inset=.01,bg='white')
+  }
+dev.off()
 
-pdf('out/prot_ltmChx.pdf',width=8)
+
+
+pdf('out/prot_ltmChx.pdf',width=10)
   for(ii in unique(sampleNames)){
     theseTreats<-treats[sampleNames==ii]
     theseStarts<-bp28[sampleNames==ii]

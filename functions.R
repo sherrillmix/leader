@@ -72,14 +72,14 @@ pullCdFiveRegion<-function(five,cd,targetFiles,windowWidth=40,...){
   return(humanStarts)
 }
 
-plotTreats<-function(meanProp,ylab='Mean percent of reads',treatCols=NULL){
+plotTreats<-function(meanProp,ylab='Mean percent of reads',treatCols=NULL,ylim=c(0,max(meanProp))*100){
   treats<-sub('[0-9]_.*$','',rownames(meanProp))
   if(is.null(treatCols)){
     treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
     if(length(treatCols)==1)treatCols<-'black'
     names(treatCols)<-unique(treats)
   }
-  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=c(0,max(meanProp))*100,xlab='Offset from TIS',ylab=ylab,las=1,mgp=c(2,.8,0))
+  plot(1,1,type='n',xlim=c(-windowWidth+1,windowWidth),ylim=ylim,xlab='Offset from TIS',ylab=ylab,las=1,mgp=c(2,.8,0))
   for(ii in 1:nrow(meanProp)){
     lines((-windowWidth+1):windowWidth,meanProp[ii,]*100,col=treatCols[treats[ii]],lwd=2)
   }

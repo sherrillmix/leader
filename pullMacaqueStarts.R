@@ -81,6 +81,27 @@ pdf('out/macque_geneExamples.pdf',height=4,width=7)
   }
 dev.off()
 
+treatments<-sub('[0-9]_.*$','',rownames(meanProp))
+pdf('out/macque_geneExamples_singlePerDrug.pdf',height=8,width=7)
+  par(mar=c(3.5,3.5,1.1,.1),mfrow=c(length(unique(treatments)),1))
+  thisGenes<-startCounts[sivLikeGenes]
+  for(geneName in names(thisGenes)){
+    thisGene<-t(apply(thisGenes[[geneName]],1,function(x)x/sum(x,na.rm=TRUE)))
+    for(ii in unique(treatments)){
+      #thisCounts<-sample(lapply(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>100)],function(x)x[ii,,drop=FALSE]),10)
+      thisId<-idLookup[geneName]
+      thisGeneName<-paste(unique(geneLookup[geneLookup$nm==thisId,'symbol']),collapse=', ')
+      thisCounts<-thisGene[treatments==ii,,drop=FALSE]
+      plot(1,1,xlim=c(-100,99),ylim=c(0,max(thisGene)*100),main=sprintf('%s %s',thisGeneName,ii),type='n',las=1,mgp=c(2.4,.8,0),xlab='',ylab='Percent of reads in region')
+      title(xlab='Position relative to TIS',mgp=c(1.7,1,0))
+      apply(thisCounts,1,function(x)lines(-100:99,x*100,col=ranjitColors[ii]))
+      abline(v=-12,lty=2,col='#00000033')
+      abline(v=seq(-9,99,3),lty=3,col='#00000033')
+    }
+  }
+dev.off()
+
+
 for(ii in 1:nrow(meanProp)){
   png(sprintf('out/pileups/macque_%02d.png',ii),height=1000,width=2000,res=200)
     par(mar=c(3.5,3.5,1.1,.1))
@@ -103,10 +124,10 @@ rownames(ltmProps)<-sub('LTM([0-9])','LTM-CHX\\1',rownames(ltmProps))
 
 pdf('out/macaque_ltm-chx.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
-  for(ii in 1:nrow(ltmProps)){
-    plotTreats(ltmProps[ii,,drop=FALSE],ylab='Difference between LTM and CHX proportions')
-    title(main=sprintf('%s',sub('LTM[0-9]-CHX[0-9]_','',rownames(ltmProps)[ii])))
-  }
+  #for(ii in 1:nrow(ltmProps)){
+  plotTreats(ltmProps,ylab='Difference between LTM and CHX proportions',ylim=c(0,max(meanProp)*100))
+  title(main=sprintf('%s',sub('LTM[0-9]-CHX[0-9]_','',rownames(ltmProps)[1])))
+  #}
 dev.off()
 
 
