@@ -118,13 +118,28 @@ pdf('out/prot_drugs.pdf',width=8)
     theseStarts<-bp28[sampleNames==ii]
     prots<-read.csv(protFiles[names(theseStarts)[1]])
     prots<-prots[order(prots$tss),]
+    thisSplices<-read.table(spliceFiles[names(theseStarts)[1]])
+    thisDonors<-unique(thisSplices$V2)
+    thisAcceptors<-unique(thisSplices$V3)
+    thisRef<-read.fa(refFiles[names(theseStarts)[1]])
+    thisAUG<-gregexpr('ATG',thisRef$seq)[[1]]
+    thisOneOff<-gregexpr('[CTG]TG|A[ACG]G|AT[CAT]',thisRef$seq)[[1]]
     for(jj in 1:nrow(prots)){
-      startSubset<-lapply(theseStarts,function(x)x[prots[jj,'tss']+-100:99])
-      ylim<-range(unlist(startSubset)+1)
-      plot(1,1,type='n',ylim=ylim,xlim=c(-100,99),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
-      abline(v=-12,lty=2,col='#00000033')
-      mapply(function(x,col)lines(-100:99,x+1,col=col),startSubset,ranjitColors[theseTreats])
-      legend('topright',legend=names(ranjitColors[names(ranjitColors)!='Total']),col=ranjitColors[names(ranjitColors)!='Total'],lty=1,inset=.01)
+      targetCoords<-prots[jj,'tss']+-100:99
+      startSubset<-lapply(theseStarts,function(x)x[targetCoords])
+      nearestAcceptor<-max(c(-Inf,thisAcceptors[thisAcceptors<=prots[jj,'tss']]))
+      nearestDonor<-min(c(Inf,thisDonors[thisDonors>=prots[jj,'tss']]))
+      #if(nearestAcceptor<100)startSubset<-lapply(startSubset,function(x){x[1:(100-nearestAcceptor)]<-NA;return(x)})
+      ylim<-range(unlist(startSubset)+1,na.rm=TRUE)
+      plot(1,1,type='n',ylim=ylim,xlim=range(targetCoords),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Read count',las=1)
+      abline(v=prots[jj,'tss']-12,lty=2,col='#00000033')
+      abline(v=prots[jj,'tss']+seq(-9,99,3),lty=3,col='#00000033')
+      mapply(function(x,col)lines(targetCoords,x+1,col=col),startSubset,ranjitColors[theseTreats])
+      if(nearestAcceptor>par('usr')[1])rect(par('usr')[1],par('usr')[3],nearestAcceptor,par('usr')[4],col='#00000055',border=NA)
+      if(nearestDonor<par('usr')[2])rect(par('usr')[2],par('usr')[3],nearestDonor,par('usr')[4],col='#00000022',border=NA)
+      for(tcl in c(.3))axis(1,thisOneOff-12,rep('',length(thisOneOff)),col='purple',lwd=0,tcl=tcl,lwd.tick=1)
+      for(tcl in c(.5))axis(1,thisAUG-12,rep('',length(thisAUG)),col='orange',lwd=0,tcl=tcl,lwd.tick=1)
+      legend('topright',legend=names(ranjitColors[names(ranjitColors)!='Total']),col=ranjitColors[names(ranjitColors)!='Total'],lty=1,inset=.01,bg='white')
     }
   }
 dev.off()

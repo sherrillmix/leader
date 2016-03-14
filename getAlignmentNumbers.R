@@ -1,3 +1,4 @@
+library(parallel)
 source('~/scripts/R/dna.R')
 dataDir<-'data'
 fastqs<-list.files(dataDir,'fastq.gz$',recursive=TRUE)
@@ -6,7 +7,7 @@ alignDir<-'work/align'
 bams<-list.files(alignDir,'bam$',recursive=TRUE)
 names(bams)<-sub('\\.bam$','',bams)
 readCounts<-cacheOperation('work/readCounts.Rdat',sapply,fastqs,function(x)as.numeric(system(sprintf('zcat %s/%s|wc -l',dataDir,x),intern=TRUE))/4)
-uniqReads<-cacheOperation('work/alignReadCounts.Rdat',sapply,bams,function(x){
+uniqReads<-cacheOperation('work/alignReadCounts.Rdat',mclapply,bams,function(x){
   outFile<-sprintf('%s/%s',alignDir,sub('bam$','uniq',x))
   if(!file.exists(outFile)){
     cmd<-sprintf('samtools view %s/%s|cut -f1|sort|uniq>%s',alignDir,x,outFile)
@@ -15,7 +16,7 @@ uniqReads<-cacheOperation('work/alignReadCounts.Rdat',sapply,bams,function(x){
   }
   out<-as.numeric(strsplit(system(sprintf('wc -l %s',outFile),intern=TRUE),' ')[[1]][1])
   return(out)
-})
+},mc.cores=3)
 
 
 if(FALSE){
