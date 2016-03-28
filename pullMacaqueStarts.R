@@ -44,10 +44,11 @@ totalCounts<-geneCounts[grep('Total',rownames(geneCounts)),]
 sivApproxCount<-20000  #SIV seems to have 15-25k within +-100 from gag from pullHivStarts.R
 sivLikeGenes<-apply(totalCounts,2,function(x)all(abs(x-sivApproxCount)<15000))
 
+meanReorder<-meanProp[order(grepl('CHX',rownames(meanProp))),]
 
 pdf('out/macaque_meanRiboProps.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
-  plotTreats(meanProp,treatCols=ranjitColors)
+  plotTreats(meanReorder,treatCols=ranjitColors)
   title(main='SIV 766')
 dev.off()
 
@@ -87,7 +88,7 @@ pdf('out/macque_geneExamples_singlePerDrug.pdf',height=8,width=7)
   thisGenes<-startCounts[sivLikeGenes]
   for(geneName in names(thisGenes)){
     thisGene<-t(apply(thisGenes[[geneName]],1,function(x)x/sum(x,na.rm=TRUE)))
-    for(ii in unique(treatments)){
+    for(ii in names(ranjitColors)){
       #thisCounts<-sample(lapply(startCounts[sapply(startCounts,function(x)sum(x[ii,],na.rm=TRUE)>100)],function(x)x[ii,,drop=FALSE]),10)
       thisId<-idLookup[geneName]
       thisGeneName<-paste(unique(geneLookup[geneLookup$nm==thisId,'symbol']),collapse=', ')

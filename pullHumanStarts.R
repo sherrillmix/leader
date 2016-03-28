@@ -32,11 +32,13 @@ geneCounts<-apply(allCounts,c(1,3),sum)
 geneCounts[is.na(geneCounts)]<-0
 totalCounts<-geneCounts[grep('Total',rownames(geneCounts)),]
 
+meanReorder694<-meanProp694[order(grepl('CHX',rownames(meanProp694))),]
+meanReorder236<-meanProp236[order(grepl('CHX',rownames(meanProp236))),]
 pdf('out/meanRiboProps.pdf',height=4,width=7)
   par(mar=c(3,3,1.1,.1))
-  plotTreats(meanProp694,treatCols=ranjitColors)
+  plotTreats(meanReorder694,treatCols=ranjitColors)
   title(main='HIV CH0694')
-  plotTreats(meanProp236,treatCols=ranjitColors)
+  plotTreats(meanReorder236,treatCols=ranjitColors)
   title(main='HIV CH0236')
 dev.off()
 
