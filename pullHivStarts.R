@@ -15,7 +15,6 @@ getStarts<-function(bamFile,fillMatrix=TRUE){
   out<-tapply(starts$start,list(starts$start,starts$end),length)
   if(fillMatrix){
     maxEnd<-max(starts$end)
-    message(maxEnd)
     #fill out the matrix so all pos present
     allPos<-1:maxEnd
     missingCols<-!allPos %in% as.numeric(colnames(out))
@@ -253,4 +252,17 @@ pdf('out/totalVirusCoverage.pdf')
   }
 dev.off()
 
+
+
+pdf('out/virusReps.pdf')
+par(mfrow=c(2,2))
+for(ii in unique(sampleNames)){
+  for(jj in c('LTM','CHX','PatA','DMSO')){
+      thisReps<-bp28[sampleNames==ii&treats==jj]
+      maxN<-max(sapply(thisReps,length))
+      thisReps<-lapply(thisReps,function(x)c(x,rep(0,maxN-length(x))))
+      plot(thisReps[[1]],thisReps[[2]],main=sprintf('%s %s',ii,jj),xlab='Replicate 1',ylab='Replicate 2')
+  }
+}
+dev.off()
 
