@@ -131,8 +131,38 @@ pdf('out/macaque_ltm-chx.pdf',height=4,width=7)
   #}
 dev.off()
 
-
-#summary(allCounts['DMSO1_SIV_766WT',,2122]==startCounts[[2122]]['DMSO1_SIV_766WT',])
-#x<-system('samtools view work/align/DMSO1_SIV_766WT.bam chr9:13812594-13812627',intern=TRUE)
-#table(as.numeric(sapply(strsplit(x,'\t'),'[[',4)))
-#tail(startCounts[[2122]]['DMSO1_SIV_766WT',],20)
+treatments<-sub('[0-9]_.*$','',rownames(goodCounts[[1]]))
+viruses<-sub('^[^_]+_','',rownames(goodCounts[[1]]))
+countBreakout<-lapply(unique(viruses),function(virus){
+  out<-lapply(unique(treatments),function(treat){
+    thisSelector<-treatments==treat & viruses==virus
+    message(virus,' ',treat)
+    out<-do.call(rbind,lapply(goodCounts,function(x,selector){
+      if(runif(1)<.001)cat('.')
+      x[is.na(x)]<-0
+      out<-apply(x[selector,],2,sum)
+    },thisSelector))
+    colnames(out)<-as.character(-100:99) #magic number
+    return(out)
+  })
+  names(out)<-unique(treatments)
+  return(out)
+})
+names(countBreakout)<-unique(viruses)
+drugData<-lapply(countBreakout,function(counts){
+  totals<-do.call(cbind,lapply(counts,function(x)apply(x,1,sum)))
+  colnames(totals)<-sprintf('total_%s',colnames(totals))
+  props<-lapply(counts,function(count)t(apply(count,1,function(x)x/ifelse(sum(x)==0,1,sum(x)))))
+  propSubset<-do.call(cbind,mapply(function(prop,name){
+    out<-prop[,as.character(-20:30)]
+    colnames(out)<-sprintf('%s_%s',name,colnames(out))
+    return(out)
+  },props,names(props),SIMPLIFY=FALSE))
+  sum3<-do.call(cbind,lapply(props,function(count)apply(count[,as.character(seq(-9,30,3))],1,sum)))
+  colnames(sum3)<-sprintf('sum3_%s',colnames(sum3))
+  out<-cbind(propSubset,totals,sum3)
+  return(out)
+})
+for(ii in names(drugData)){
+  write.csv(drugData[[ii]],sprintf('out/data_%s.csv',ii))
+}
