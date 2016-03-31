@@ -266,3 +266,17 @@ for(ii in unique(sampleNames)){
 }
 dev.off()
 
+
+startLike<-unlist(lapply(1:3,function(pos)lapply(c('A','T','C','G'),function(base){out<-'ATG';substring(out,pos,pos)<-base;out})))
+startLike<-startLike[startLike!='ATG']
+
+genomeFiles<-list.files('data/','fasta$',recursive=TRUE)
+genomes<-sapply(sprintf('data/%s',genomeFiles),function(x)read.fa(x)$seq)
+names(genomes)<-sub('data/','',dirname(genomeFiles))
+
+genomeStarts<-lapply(genomes,function(dna){
+  pos<-seq(1,nchar(dna)-2)
+  nmers<-substring(dna,pos,pos+2)
+  return(data.frame('pos'=pos,'nmers'=nmers,'start'=nmers=='ATG','startLike'=nmers %in% startLike,stringsAsFactors=FALSE))
+})
+
