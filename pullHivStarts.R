@@ -93,7 +93,7 @@ for(ii in names(rnaStarts)){
   dev.off()
 }
 
-bp28<-lapply(rnaStarts[!grepl('Total',names(rnaStarts))],function(rs)sapply(1:(nrow(rs)-28),function(x)sum(rs[x,x+26:28])))
+bp28<-lapply(rnaStarts,function(rs)sapply(1:(nrow(rs)-28),function(x)sum(rs[x,x+26:28])))
 sampleNames<-sub('^[^_]+_','',names(bp28))
 treats<-sub('[0-9]_.*$','',names(bp28))
 treatCols<-rainbow.lab(length(unique(treats)),lightScale=0,lightMultiple=.8,alpha=.7)
@@ -272,11 +272,71 @@ startLike<-startLike[startLike!='ATG']
 
 genomeFiles<-list.files('data/','fasta$',recursive=TRUE)
 genomes<-sapply(sprintf('data/%s',genomeFiles),function(x)read.fa(x)$seq)
-names(genomes)<-sub('data/','',dirname(genomeFiles))
+#names(genomes)<-sub('data/','',dirname(genomeFiles))
+names(genomes)<- sapply(file.path('data',dirname(genomeFiles)),function(x)sub('_trim.fastq.gz','',sub('^[^_]+_','',list.files(x,'Total1.*fastq.gz'))))
 
 genomeStarts<-lapply(genomes,function(dna){
   pos<-seq(1,nchar(dna)-2)
   nmers<-substring(dna,pos,pos+2)
   return(data.frame('pos'=pos,'nmers'=nmers,'start'=nmers=='ATG','startLike'=nmers %in% startLike,stringsAsFactors=FALSE))
 })
+
+viruses<-sub('^[^_]+_','',names(bp28))
+treatments<-sub('[0-9]_.*$','',names(bp28))
+
+drugSums<-tapply(bp28,list(viruses,treatments),function(counts){
+  nBase<-max(sapply(counts,length))
+  counts<-lapply(counts,function(x)c(x,rep(0,nBase-length(x))))
+  apply(do.call(rbind,counts),2,sum)
+})
+
+
+
+startCuts<-lapply(names(genomeStarts),function(virus){
+  thisTreats<-treatments[viruses==virus]
+  thisData<-drugSums[virus,]
+  nBases<-min(sapply(thisData,length))
+  thisGenome<-genomeStarts[[virus]]
+  #throw out early starts #a bit dangerous if something in first or last few bases is interesting 
+  thisGenome<-thisGenome[thisGenome$pos>30&thisGenome$pos<nBases-30,]
+  thisStarts<-thisGenome[thisGenome$start|thisGenome$startLike,]
+  cuts<-lapply(thisStarts$pos,function(pos){
+      plusMinus<--100:99
+      selectPos<-pos+plusMinus
+      posSelect<-selectPos>0&selectPos<nBases
+      selectPos<-selectPos[posSelect]
+      out<-do.call(rbind,lapply(thisData,function(x)x[selectPos]))
+      colnames(out)<-plusMinus[posSelect]
+      return(out)
+  })
+  names(cuts)<-paste(virus,thisStarts$pos,sep='_pos')
+  return(cuts)
+})
+names(startCuts)<-names(genomeStarts)
+
+drugData<-lapply(startCuts,function(counts){
+  totals<-do.call(rbind,lapply(counts,function(x)apply(x,1,sum)))
+  colnames(totals)<-sprintf('total_%s',colnames(totals))
+  props<-lapply(counts,function(count)t(apply(count,1,function(x)x/ifelse(sum(x)==0,1,sum(x)))))
+  propSubset<-do.call(rbind,lapply(props,function(prop){
+    do.call(c,lapply(rownames(prop),function(name){
+      out<-prop[name,as.character(-20:30)]
+      names(out)<-sprintf('%s_%s',name,names(out))
+      return(out)
+    }))
+  }))
+  sum3<-do.call(rbind,lapply(props,function(count)apply(count[,as.character(seq(-9,30,3))],1,sum)))
+  colnames(sum3)<-sprintf('sum3_%s',colnames(sum3))
+  out<-cbind(propSubset,totals,sum3)
+  return(out)
+})
+names(drugData)<-names(startCuts)
+
+
+for(ii in names(drugData)){
+  write.csv(drugData[[ii]],sprintf('out/dataVirus_%s.csv',ii))
+}
+
+
+
 
