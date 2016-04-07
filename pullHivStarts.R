@@ -290,6 +290,12 @@ drugSums<-tapply(bp28,list(viruses,treatments),function(counts){
   apply(do.call(rbind,counts),2,sum)
 })
 
+for(ii in rownames(drugSums)){
+  for(jj in colnames(drugSums)){
+    thisData<-drugSums[[ii,jj]]
+    writeLines(as.character(thisData),sprintf('work/virusCounts/%s_%s.txt',ii,jj))
+  }
+}
 
 
 startCuts<-lapply(names(genomeStarts),function(virus){
@@ -298,8 +304,8 @@ startCuts<-lapply(names(genomeStarts),function(virus){
   nBases<-min(sapply(thisData,length))
   thisGenome<-genomeStarts[[virus]]
   #throw out early starts #a bit dangerous if something in first or last few bases is interesting 
-  thisGenome<-thisGenome[thisGenome$pos>30&thisGenome$pos<nBases-30,]
-  thisStarts<-thisGenome[thisGenome$start|thisGenome$startLike,]
+  thisStarts<-thisGenome[thisGenome$pos>30&thisGenome$pos<nBases-30,]
+  #thisStarts<-thisStarts[thisGenome$start|thisGenome$startLike,]
   cuts<-lapply(thisStarts$pos,function(pos){
       plusMinus<--100:99
       selectPos<-pos+plusMinus
@@ -309,7 +315,7 @@ startCuts<-lapply(names(genomeStarts),function(virus){
       colnames(out)<-plusMinus[posSelect]
       return(out)
   })
-  names(cuts)<-paste(virus,thisStarts$pos,sep='_pos')
+  names(cuts)<-sprintf('%s_pos%d_%s',virus,thisStarts$pos,ifelse(thisStarts$start,'start',ifelse(thisStarts$startLike,'oneOff','noStart')))
   return(cuts)
 })
 names(startCuts)<-names(genomeStarts)
