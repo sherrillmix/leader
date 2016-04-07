@@ -1,5 +1,8 @@
 library(parallel)
 library(e1071)
+library(dnar)
+library(vipor)
+
 if(!exists('features')){
   featureFiles<-list.files('out','data_.*.csv',full.names=TRUE)
   features<-lapply(featureFiles,read.csv,stringsAsFactors=FALSE,row.names=1,check.names=FALSE)
@@ -42,7 +45,7 @@ svms<-mclapply(names(trainTest),function(datName){
   message(datName, ' test set:')
   print(summary(predicts))
   message('Predicting ',datName, ' viral data')
-  virusPredicts<-predict(model,virus[[datName]][,selectColumns])
+  virusPredicts<-predict(model,virus[[datName]][grepl('_start|_oneOff',rownames(virus[[datName]])),selectColumns])
   message(datName, ' viral data:')
   print(summary(virusPredicts))
   return(list(model,predicts,virusPredicts))
@@ -70,6 +73,72 @@ for(ii in names(svms)){
   thisNames<-rownames(virus[[ii]])[virusBreak]
   print(thisNames)
 }
+
+#hivFiles<-list.files('work/virusCounts/','txt$',full.name=TRUE)
+#hivData<-lapply(hivFiles,function(x)as.numeric(readLines(x)))
+#names(hivData)<-sub('.txt$','',basename(hivFiles))
+#viruses<-sub('_[^_]+$','',names(hivData))
+#drugs<-sub('^.*_','',names(hivData))
+
+drugs<-unique(sub('_[0-9-]+','',colnames(virus[[1]])[grepl('_[0-9-]+$',colnames(virus[[1]]))]))
+bestFeatures<-lapply(features,function(dat){
+  selector<-dat[,'total_Total']>1000&dat[,'total_LTM']>100&dat[,'total_CHX']>100&dat[,'total_PatA']>100 &dat[,'total_DMSO']>100&dat[,'LTM_-12']>.06 & dat[,'CHX_-12']>.06# &x[,'ltmChx']>.03
+  dat[selector,]
+})
+drugProfiles<-lapply(bestFeatures,function(dat){
+  meanDrug<-lapply(drugs,function(drug){
+    apply(dat[,grepl(sprintf('%s_[0-9-]+',drug),colnames(dat))],2,mean)
+  })
+  names(meanDrug)<-drugs
+  return(meanDrug)
+})
+jsDists<-lapply(names(bestFeatures),function(strain){
+  dat<-bestFeatures[[strain]]
+  js<-do.call(cbind,lapply(drugs,function(drug){
+    apply(dat[,grepl(sprintf('%s_[0-9-]+',drug),colnames(dat))],1,jensenShannon,drugProfiles[[strain]][[drug]])
+  }))
+  colnames(js)<-drugs
+  virusDat<-virus[[strain]]
+  jsVirus<-do.call(cbind,lapply(drugs,function(drug){
+    apply(virusDat[,grepl(sprintf('%s_[0-9-]+',drug),colnames(virusDat))],1,jensenShannon,drugProfiles[[strain]][[drug]])
+  }))
+  colnames(jsVirus)<-drugs
+  return(list('host'=js,'virus'=jsVirus))
+})
+names(jsDists)<-names(bestFeatures)
+
+pdf('out/jsDist.pdf')
+for(ii in names(jsDists)){
+  dat<-jsDists[[ii]]
+  virusDat<-virus[[ii]]
+  drugNames<-rep(colnames(dat[['host']]),each=nrow(dat[['host']]))
+  virusDrugNames<-sprintf("%s_%s",rep(colnames(dat[['virus']]),each=nrow(dat[['virus']])),rep(sub('^.*_','',rownames(dat[['virus']])),ncol(dat[['virus']])))
+  hostQuant<-apply(dat[['host']],2,quantile,.75)
+  #goodVirus<-apply(dat[['virus']][,'LTM',drop=FALSE],1,function(x)all(x<hostQuant['LTM'])) 
+  goodVirus<-apply(dat[['virus']],1,function(x)all(x<hostQuant))&virusDat[,'LTM_-12']-virusDat[,'CHX_-12']>0
+  pos<-vpPlot(c(drugNames,virusDrugNames),c(as.vector(dat[['host']]),as.vector(dat[['virus']])),ylab='Jensen Shannon divergence',main=ii,las=2,cex=.5)
+  vPos<-pos[(length(drugNames)+1):length(pos)]
+  points(vPos[rep(goodVirus,ncol(dat[['virus']]))],as.vector(dat[['virus']][goodVirus,]),col='red',cex=1.1)
+  message(ii)
+  print(rownames(dat[['virus']])[goodVirus])
+}
+dev.off()
+
+
+pdf('out/virusLtmChx.pdf',width=20)
+  for(ii in names(virus)){
+    dat<-virus[[ii]]
+    ltmChx<-dat[,'LTM_-12']-dat[,'CHX_-12']
+    ltmChx<-ifelse(ltmChx<0,0,ltmChx)
+    plot(ltmChx,col=ifelse(grepl('_start$',rownames(dat)),'red',ifelse(grepl('_oneOff$',rownames(dat)),'blue','black')),main=ii)
+    abline(h=.05,lty=2)
+    plot(ltmChx,dat[,'total_LTM']*dat[,'LTM_-12']+1,log='y',col=ifelse(grepl('_start$',rownames(dat)),'red',ifelse(grepl('_oneOff$',rownames(dat)),'blue','black')))
+    plot(ltmChx,dat[,'total_CHX']*dat[,'CHX_-12']+1,log='y',col=ifelse(grepl('_start$',rownames(dat)),'red',ifelse(grepl('_oneOff$',rownames(dat)),'blue','black')))
+  }
+dev.off()
+
+
+
 
 if(FALSE){
   ltm1<-do.call(rbind,lapply(goodCounts,function(x)x['LTM1_HIV_CH0236',]))
