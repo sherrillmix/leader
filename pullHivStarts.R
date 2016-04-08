@@ -206,23 +206,31 @@ ltmChx<-lapply(unique(sampleNames),function(sample){
     n<-max(length(ltm),length(chx))
     ltm<-ltm[1:n]
     chx<-chx[1:n]
-    #ltm/movingStat(ltm,max,100)-chx/movingStat(chx,max,100)
     ltm/sum(ltm)-chx/sum(chx)
+    browser()
   },bp28[ltms],bp28[chxs])
-  return(ltmChx)
+  #colnames(ltmChx)<-c('ltmChx1','ltmChx2')
+  ltmChx2<-mapply(function(ltm,chx){
+    n<-max(length(ltm),length(chx))
+    ltm<-ltm[1:n]
+    chx<-chx[1:n]
+    ltm/movingStat(ltm,sum,100)-chx/movingStat(chx,sum,100)
+  },bp28[ltms],bp28[chxs])
+  colnames(ltmChx2)<-c('movingLtmChx1','movingLtmChx2')
+  return(cbind(ltmChx,ltmChx2))
 })
 names(ltmChx)<-unique(sampleNames)
 
-pdf('out/virus_ltmChx.pdf',width=10)
+pdf('out/virus_ltmChx.pdf',width=20)
   for(ii in names(ltmChx)){
     message(ii)
     thisLtmChx<-ltmChx[[ii]]
     thisLtmChx[is.na(thisLtmChx)]<-0
-    thisLtmChx<-ifelse(thisLtmChx<.0001,.0001,thisLtmChx)
-    ylim=range(thisLtmChx)
+    thisLtmChx<-ifelse(thisLtmChx<0,0,thisLtmChx)
+    ylim=range(thisLtmChx[,1:2])
     xlim=c(1,nrow(thisLtmChx))
-    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between LTM and CHX proportions',main=ii)
-    thisProts<-read.csv(protFiles[colnames(thisLtmChx)[1]])
+    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between global LTM and CHX proportions',main=ii)
+    thisProts<-read.csv(protFiles[colnames(thisLtmChx)[1]],stringsAsFactors=FALSE)
     thisProts<-thisProts[tolower(thisProts$name)!='pol',]
     thisSplices<-read.table(spliceFiles[colnames(thisLtmChx)[1]])
     thisDonors<-unique(thisSplices$V2)
@@ -230,8 +238,43 @@ pdf('out/virus_ltmChx.pdf',width=10)
     abline(v=thisProts$tss-12,col='#FF000033')
     axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF')
     axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00')
+    thisSplices<-read.table(spliceFiles[colnames(thisLtmChx)[1]],header=FALSE)
+    #abline(v=unique(thisSplices[,2]),col='#00FF0033',lty=2)
+    #abline(v=unique(thisSplices[,3]),col='#0000FF33',lty=2)
     box()
-    apply(thisLtmChx,2,lines,col='#00000099')
+    #apply(thisLtmChx[,1:2],2,points,col='#00000099')
+    points(apply(thisLtmChx[,1:2],1,mean),col='#00000099')
+    ylim=range(thisLtmChx[,3:4])
+    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between moving LTM and CHX proportions',main=ii)
+    abline(v=thisProts$tss-12,col='#FF000033')
+    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF')
+    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00')
+    abline(h=.05,lty=2)
+    #abline(v=unique(thisSplices[,2]),col='#00FF0033',lty=2)
+    #abline(v=unique(thisSplices[,3]),col='#0000FF33',lty=2)
+    box()
+    #apply(thisLtmChx[,3:4],2,points,col='#00000099')
+    points(apply(thisLtmChx[,3:4],1,mean),col='#00000099')
+    #write csv
+    out<-as.data.frame(thisLtmChx)
+    colnames(out)[1:2]<-c('ltmChx1','ltmChx2')
+    out$pos<-1:nrow(out)
+    out$adjustPos<-out$pos+12
+    out$prot<-''
+    for(jj in 1:nrow(thisProts))out$prot[out$adjustPos==thisProts[jj,'tss']]<-thisProts[jj,'name']
+    thisAcceptors<-unique(thisSplices[,3]) #last base of intron
+    thisDonors<-unique(thisSplices[,2]) #last base of intron
+    out$nearbyAcceptor<-sapply(out$pos,function(x){selector<-thisAcceptors>x&thisAcceptors<x+12;ifelse(any(selector),thisAcceptors[selector][1],'')})
+    out$nearbyDonor<-sapply(out$pos,function(x){selector<-thisDonors>x&thisDonors<x+12;ifelse(any(selector),thisDonors[selector][1],'')})
+    thisGenome<-genomes[ii]
+    out$codon<-substring(thisGenome,out$adjustPos,out$adjustPos+2)
+    #out$ltmGreater1<-out$ltmChx1>.001&out$ltmChx2>.001
+    out$movingGreaterCut<-out$movingLtmChx1>.05&out$movingLtmChx2>.05
+    print(summary(out$movingGreaterCut))
+    print(out[out$movingGreaterCut,'adjustPos'])
+    #print(summary(out$ltmGreater1))
+    write.csv(out,sprintf('out/ltmChx/%s.csv',ii),row.names=FALSE)
+    #out$passCutoff<-out[,'ltmMinusChx']>.05
   }
 dev.off()
 

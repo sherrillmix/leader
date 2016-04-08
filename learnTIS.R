@@ -63,11 +63,16 @@ for(ii in names(svms)){
     yRange<-range(c(virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX']))
     plot(virus[[ii]][,'ltmChx'],virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX'],col=1+svms[[ii]][[3]],xlim=xRange,ylim=yRange)
     plot(trainTest[[ii]][['test']][,'ltmChx'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX'],col=1+svms[[ii]][[2]],xlim=xRange,ylim=yRange)
-    humanQuant<-quantile(trainTest[[ii]][['test']][,'ltmChx'],humanQuantileCut)
+  dev.off()
+  pdf(sprintf('out/svm/ltm_%s.pdf',ii))
+    humanQuant<-quantile(trainTest[[ii]][['train']][,'ltmChx'],humanQuantileCut)
     virusBreak<-virus[[ii]][,'ltmChx']>humanQuant#&virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX']>.1
-    plot(virus[[ii]][,'ltmChx'],virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX'],col=1+virusBreak,xlim=xRange,ylim=yRange)
+    pos<-as.numeric(sub('.*_pos([0-9]+)_.*$','\\1',rownames(virus[[ii]])))
+    plot(virus[[ii]][,'ltmChx'],pos,col=1+virusBreak,xlim=xRange,ylab='Position',xlab='Virus LTM - CHX',main=ii)
+    abline(v=.05,lty=2)
     humanBreak<-trainTest[[ii]][['test']][,'ltmChx']>humanQuant #& trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX']>.1
-    plot(trainTest[[ii]][['test']][,'ltmChx'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX'],col=1+humanBreak,xlim=xRange,ylim=yRange)
+    plot(trainTest[[ii]][['test']][,'ltmChx'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX'],col=1+humanBreak,xlim=xRange,ylim=yRange,xlab='Host LTM - CHX',ylab='3-base codon sum',main=ii)
+    abline(v=.05,lty=2)
   dev.off()
   message(ii)
   thisNames<-rownames(virus[[ii]])[virusBreak]
@@ -116,11 +121,13 @@ for(ii in names(jsDists)){
   hostQuant<-apply(dat[['host']],2,quantile,.75)
   #goodVirus<-apply(dat[['virus']][,'LTM',drop=FALSE],1,function(x)all(x<hostQuant['LTM'])) 
   goodVirus<-apply(dat[['virus']],1,function(x)all(x<hostQuant))&virusDat[,'LTM_-12']-virusDat[,'CHX_-12']>0
+  par(mar=c(7,4,1,.1))
   pos<-vpPlot(c(drugNames,virusDrugNames),c(as.vector(dat[['host']]),as.vector(dat[['virus']])),ylab='Jensen Shannon divergence',main=ii,las=2,cex=.5)
+  abline(v=seq(4.5,20,4))
   vPos<-pos[(length(drugNames)+1):length(pos)]
   points(vPos[rep(goodVirus,ncol(dat[['virus']]))],as.vector(dat[['virus']][goodVirus,]),col='red',cex=1.1)
   message(ii)
-  print(rownames(dat[['virus']])[goodVirus])
+  mtext(paste(sub('.*_pos([0-9]+).*','\\1',rownames(dat[['virus']])[goodVirus]),collapse=', '),3,line=-1,col='red',cex=.8)
 }
 dev.off()
 
@@ -138,6 +145,16 @@ pdf('out/virusLtmChx.pdf',width=20)
 dev.off()
 
 
+#output ltm-chx
+ltmChxOut<-lapply(names(virus),function(ii){
+  pos<-as.numeric(sub('.*_pos([0-9]+)_.*$','\\1',rownames(virus[[ii]])))
+  start<-sub('^.*_([^_]+)','\\1',rownames(virus[[ii]]))
+  out<-data.frame('pos'=pos,'ltmMinusChx'=virus[[ii]][,'ltmChx'],'start'=start)
+  out$passCutoff<-out[,'ltmMinusChx']>.05
+  write.csv(out,sprintf('out/ltmChx/%s.csv',ii))
+  return(out)
+})
+names(ltmChxOut)<-names(virus)
 
 
 if(FALSE){
