@@ -13,10 +13,12 @@ for thisDir in data/*;do
     outFile=work/virusFind/${base%_trim.fastq.gz}
     if [ ! -f "${outFile}_match.fastq.gz" ];then
       date
-      ~/installs/suffixc/suffixc $virusFile $ii -o $outFile -m 1 -l 12
+      sem -j3 ~/installs/suffixc/suffixc $virusFile $ii -o $outFile -m 1 -l 18
       date
     else
       echo "Already processed. Skipping."
     fi
   done
 done
+sem --wait
+echo "All done"
