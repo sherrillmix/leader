@@ -36,7 +36,7 @@ getStarts<-function(bamFile,fillMatrix=TRUE){
 dataDir<-'work/virusAlign'
 allRnaFiles<-list.files(dataDir,'\\.bam$')
 if(!exists('rnaStarts'))print(system.time(rnaStarts<-mclapply(sprintf("%s/%s",dataDir,allRnaFiles),getStarts,mc.cores=12,mc.preschedule=FALSE)))
-names(rnaStarts)<-sub('_virus.bam','',basename(allRnaFiles))
+names(rnaStarts)<-names(allRnaFiles)<-sub('_virus.bam','',basename(allRnaFiles))
 
 
 allData<-list.files('data',full.names=TRUE,recursive=TRUE)
@@ -289,6 +289,12 @@ gagCounts<-sapply(names(totals),function(name){
   sum(totals[[name]][gag-100:100])
 })
 print(cbind('gag'=gagCounts,'total'=sapply(totals,sum),'propGagx1000'=round(gagCounts/sapply(totals,sum)*1000,3)))
+pdf('out/totalVirusCoverage.pdf')
+  for(ii in names(totals)){
+    plot(totals[[ii]],type='l',main=ii,log='y',ylab='Total RNA start counts',xlab='Genome position')
+  }
+dev.off()
+
 pdf('out/totalVirusCoverage.pdf')
   for(ii in names(totals)){
     plot(totals[[ii]],type='l',main=ii,log='y',ylab='Total RNA start counts',xlab='Genome position')
