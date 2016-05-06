@@ -69,3 +69,4 @@ spliceUnspliceProp<-sapply(names(totalReads),function(ii){
 })
 
 print(cbind(spliceUnspliceProp,upDownProp))
+

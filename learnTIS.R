@@ -26,7 +26,7 @@ selectColumns<-selectColumns[grepl('_-12|sum3|ltmChx',selectColumns)]
 set.seed(1234)
 trainTest<-lapply(features,function(x){
   #x[,'LTM_-12']-x[,'CHX_-12']>.03&
-  selector<-x[,'total_Total']>1000&x[,'total_LTM']>100&x[,'total_CHX']>100 &x[,'LTM_-12']>.1 & x[,'CHX_-12']>.1# &x[,'ltmChx']>.03
+  selector<-x[,'total_Total']>1000&x[,'total_LTM']>100&x[,'total_CHX']>100 #&x[,'LTM_-12']>.1 & x[,'CHX_-12']>.1# &x[,'ltmChx']>.03
   print(summary(selector))
   x<-x[selector,]
   trainIds<-sample(nrow(x),round(sum(nrow(x)*.5)))
@@ -64,20 +64,54 @@ for(ii in names(svms)){
     plot(virus[[ii]][,'ltmChx'],virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX'],col=1+svms[[ii]][[3]],xlim=xRange,ylim=yRange)
     plot(trainTest[[ii]][['test']][,'ltmChx'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX'],col=1+svms[[ii]][[2]],xlim=xRange,ylim=yRange)
   dev.off()
-  pdf(sprintf('out/svm/ltm_%s.pdf',ii))
-    humanQuant<-quantile(trainTest[[ii]][['train']][,'ltmChx'],humanQuantileCut)
-    virusBreak<-virus[[ii]][,'ltmChx']>humanQuant#&virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX']>.1
-    pos<-as.numeric(sub('.*_pos([0-9]+)_.*$','\\1',rownames(virus[[ii]])))
-    plot(virus[[ii]][,'ltmChx'],pos,col=1+virusBreak,xlim=xRange,ylab='Position',xlab='Virus LTM - CHX',main=ii)
-    abline(v=.05,lty=2)
-    humanBreak<-trainTest[[ii]][['test']][,'ltmChx']>humanQuant #& trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX']>.1
-    plot(trainTest[[ii]][['test']][,'ltmChx'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX'],col=1+humanBreak,xlim=xRange,ylim=yRange,xlab='Host LTM - CHX',ylab='3-base codon sum',main=ii)
-    abline(v=.05,lty=2)
-  dev.off()
-  message(ii)
   thisNames<-rownames(virus[[ii]])[virusBreak]
   print(thisNames)
 }
+
+datLookup<-c('HIV_CH0236'="HIV_CH0236",'HIV_CH0694'="HIV_CH0694",'0227_SIV_766'="SIV-0227-766",'SIV_766MUT'="SIV_766_MUT_Hiseq",'SIV_766WT'="SIV_766_WT_Hiseq")
+codonCols<-c('noStart'=NA,'oneOff'='#0000FF44','start'='#FF000044')
+pdf('out/host_virus_ltmChx.pdf',width=10,height=4)
+for(ii in names(svms)){
+    prots<-read.csv(file.path('data',datLookup[ii],'prots.csv'),stringsAsFactors=FALSE)[,c('name','tss')]
+    prots<-unique(prots[!prots$name %in% c('pol','Pol'),])
+    par(mfrow=c(1,2),mar=c(3.5,4,1,.1),las=1,mgp=c(2.3,.8,0))
+    xRange<-range(c(virus[[ii]][,'LTM_-12']-virus[[ii]][,'CHX_-12'],trainTest[[ii]][['test']][,'LTM_-12']-trainTest[[ii]][['test']][,'CHX_-12']))
+    yRange<-range(c(virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX'],trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX']))
+    humanQuant<-quantile(trainTest[[ii]][['train']][,'ltmChx'],humanQuantileCut)
+    virusBreak<-virus[[ii]][,'ltmChx']>humanQuant#&virus[[ii]][,'sum3_DMSO']+virus[[ii]][,'sum3_CHX']>.1
+    pos<-as.numeric(sub('.*_pos([0-9]+)_.*$','\\1',rownames(virus[[ii]])))
+    codonType<-sub('^.*_','',rownames(virus[[ii]]))
+    plot(pos,virus[[ii]][,'ltmChx'],ylim=xRange,xlab='Position',ylab='Virus LTM - CHX',main=ii,pch=21,bg=codonCols[codonType])
+    abline(h=.05,lty=2)
+    abline(h=0,lty=3)
+    #abline(h=humanQuant,lty=3)
+    abline(v=prots$tss-12,lty=1,col='#FF000033')
+    legend('topleft',names(codonCols),bg='white',pt.bg=codonCols,pch=21,inset=.01)
+    humanBreak<-trainTest[[ii]][['test']][,'ltmChx']>humanQuant #& trainTest[[ii]][['test']][,'sum3_DMSO']+trainTest[[ii]][['test']][,'sum3_CHX']>.1
+    ltmOrder<-order(trainTest[[ii]][['test']][,'ltmChx'])
+    plot(1:nrow(trainTest[[ii]][['test']]),trainTest[[ii]][['test']][ltmOrder,'ltmChx'],ylim=xRange,ylab='Host LTM - CHX',xlab='Rank',main=sprintf('%s host genes',ii))
+    abline(h=.05,lty=2)
+    abline(h=0,lty=3)
+    #abline(h=humanQuant,lty=3)
+}
+dev.off()
+
+pdf('out/host_ltmChx.pdf',width=10,height=4)
+for(ii in names(svms)){
+  hostLtm<-features[[ii]][,grep('^LTM',colnames(features[[ii]]))]
+  hostChx<-features[[ii]][,grep('^CHX',colnames(features[[ii]]))]
+  hostLtmChx<-hostLtm-hostChx
+  hostLtmChx[hostLtmChx<0]<-0
+  selector<-features[[ii]][,'total_Total']>1000&features[[ii]][,'total_LTM']>500&features[[ii]][,'total_CHX']>500 &hostLtmChx[,pos==-12]>.1
+  pos<-as.numeric(sub('^.*_','',colnames(hostLtmChx)))
+  hostLtmChx<-t(apply(hostLtmChx,1,function(x)x/x[pos==-12]))
+  par(mar=c(3.3,4,1,.2),lheight=.7)
+  plot(1,1,xlim=range(pos),ylim=c(0,2),type='n',xlab='Offset from TIS',ylab='Difference between LTM and CHX\n(proportion of -12 peak)',mgp=c(2.3,1,0),main=ii,las=1)
+  apply(hostLtmChx[selector,],1,function(x)lines(pos,x,col='#00000055'))
+  abline(v=-12,col='#FF0000AA',lty=2)
+  abline(v=c(-15,seq(-9,30,3)),col='#FF000055',lty=3)
+}
+dev.off()
 
 #hivFiles<-list.files('work/virusCounts/','txt$',full.name=TRUE)
 #hivData<-lapply(hivFiles,function(x)as.numeric(readLines(x)))

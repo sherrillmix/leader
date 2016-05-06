@@ -20,7 +20,7 @@ uniqReads<-cacheOperation('work/alignReadCounts.Rdat',lapply,bams,function(x){
 })#,mc.cores=3)
 
 virusBams<-list.files(virusDir,'bam$',recursive=TRUE)
-names(virusBams)<-sub('\\.bam$','',virusBams)
+names(virusBams)<-sub('_virus\\.bam$','',virusBams)
 virusReads<-cacheOperation('work/virusReadCounts.Rdat',lapply,virusBams,function(x){
   outFile<-sprintf('%s/%s',virusDir,sub('bam$','uniq',x))
   if(!file.exists(outFile)){
@@ -31,6 +31,7 @@ virusReads<-cacheOperation('work/virusReadCounts.Rdat',lapply,virusBams,function
   out<-as.numeric(strsplit(system(sprintf('wc -l %s',outFile),intern=TRUE),' ')[[1]][1])
   return(out)
 })
+names(virusReads)<-names(virusBams)
 
 if(FALSE){
 if(!all(names(bams) %in% names(fastqs))||!all(names(fastqs) %in% names(bams)))stop(simpleError('Mismatch between bam and fastq'))
@@ -47,3 +48,8 @@ fastqReadIds<-cacheOperation('work/fastqIds.Rdat',lapply,fastqs[names(bams)],fun
 
 if(!all(sapply(bamReadIds,length)==1)||!all(sapply(fastqReadIds,length)==1)||any(unlist(bamReadIds)!=unlist(fastqReadIds)))stop(simpleError('Read ids do not match in fastq and bam'))
 }
+
+reads<-data.frame('Reads'=unlist(readCounts[names(uniqReads)]),'Host'=unlist(uniqReads),'Virus'=unlist(virusReads[names(uniqReads)]))
+write.csv(do.call(rbind,by(reads,sub('^([^_]+)[12]_','\\1_',rownames(reads)),function(x)apply(x,2,sum))),'out/readCounts.csv')
+
+

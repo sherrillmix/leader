@@ -33,10 +33,25 @@ getStarts<-function(bamFile,fillMatrix=TRUE){
   return(out)
 }
 
+startLike<-unlist(lapply(1:3,function(pos)lapply(c('A','T','C','G'),function(base){out<-'ATG';substring(out,pos,pos)<-base;out})))
+startLike<-startLike[startLike!='ATG']
+
 dataDir<-'work/virusAlign'
 allRnaFiles<-list.files(dataDir,'\\.bam$')
 if(!exists('rnaStarts'))print(system.time(rnaStarts<-mclapply(sprintf("%s/%s",dataDir,allRnaFiles),getStarts,mc.cores=12,mc.preschedule=FALSE)))
 names(rnaStarts)<-names(allRnaFiles)<-sub('_virus.bam','',basename(allRnaFiles))
+
+genomeFiles<-list.files('data/','fasta$',recursive=TRUE)
+genomes<-sapply(sprintf('data/%s',genomeFiles),function(x)read.fa(x)$seq)
+#names(genomes)<-sub('data/','',dirname(genomeFiles))
+names(genomes)<- sapply(file.path('data',dirname(genomeFiles)),function(x)sub('_trim.fastq.gz','',sub('^[^_]+_','',list.files(x,'Total1.*fastq.gz'))))
+
+genomeStarts<-lapply(genomes,function(dna){
+  pos<-seq(1,nchar(dna)-2)
+  nmers<-substring(dna,pos,pos+2)
+  return(data.frame('pos'=pos,'nmers'=nmers,'start'=nmers=='ATG','startLike'=nmers %in% startLike,stringsAsFactors=FALSE))
+})
+
 
 
 allData<-list.files('data',full.names=TRUE,recursive=TRUE)
@@ -186,14 +201,17 @@ pdf('out/prot_ltmChx.pdf',width=10)
       x/sum(x)-y/sum(y)
     },theseStarts[theseLtm],theseStarts[theseChx],SIMPLIFY=FALSE)
     prots<-read.csv(protFiles[names(theseStarts)[1]])
-    prots<-prots[order(prots$tss),]
+    prots<-unique(prots[order(prots$tss),c('name','tss')])
+    par(mfrow=c(3,ceiling(nrow(prots)/3)),mar=c(3.5,4,1,.1),mgp=c(2.5,1,0))
     for(jj in 1:nrow(prots)){
       startSubset<-lapply(theseLtmChx,function(x)x[prots[jj,'tss']+-100:99])
       ylim<-c(0,max(unlist(startSubset))*1000)
-      plot(1,1,type='n',ylim=ylim,xlim=c(-100,99),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='Position',ylab='Difference in LTM and CHX proportions (x1000)',las=1)
-      abline(v=-12,lty=2,col='#00000033')
+      plot(1,1,type='n',ylim=ylim,xlim=c(-50,50),main=sprintf('%s %s',ii,prots[jj,'name']),xlab='',ylab='Difference between LTM and CHX (x1000)',las=1)
+      title(xlab='Offset from TIS',mgp=c(1.75,1,0))
+      abline(v=-12,lty=2,col='#FF0000')
+      abline(v=-12+seq(3,90,3),lty=3,col='#FF000055')
       mapply(function(x,col)lines(-100:99,1000*ifelse(x<0,0,x)),startSubset)
-      legend('topright',legend='LTM-CHX',col='black',lty=1,inset=.01)
+      #if(jj==1)legend('topleft',legend='LTM-CHX',col='black',lty=1,inset=.01)
     }
   }
 dev.off()
@@ -207,7 +225,6 @@ ltmChx<-lapply(unique(sampleNames),function(sample){
     ltm<-ltm[1:n]
     chx<-chx[1:n]
     ltm/sum(ltm)-chx/sum(chx)
-    browser()
   },bp28[ltms],bp28[chxs])
   #colnames(ltmChx)<-c('ltmChx1','ltmChx2')
   ltmChx2<-mapply(function(ltm,chx){
@@ -221,40 +238,43 @@ ltmChx<-lapply(unique(sampleNames),function(sample){
 })
 names(ltmChx)<-unique(sampleNames)
 
-pdf('out/virus_ltmChx.pdf',width=20)
+pdf('out/virus_ltmChx.pdf',width=8,height=4)
   for(ii in names(ltmChx)){
     message(ii)
     thisLtmChx<-ltmChx[[ii]]
     thisLtmChx[is.na(thisLtmChx)]<-0
-    thisLtmChx<-ifelse(thisLtmChx<0,0,thisLtmChx)
+    thisLtmChx<-ifelse(thisLtmChx<0,0,thisLtmChx)*100
+    thisCodons<-genomeStarts[[ii]]
     ylim=range(thisLtmChx[,1:2])
     xlim=c(1,nrow(thisLtmChx))
-    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between global LTM and CHX proportions',main=ii)
+    par(mar=c(3.5,4,1,.1),lheight=.8,mgp=c(2.25,.8,0))
+    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between global\nLTM and CHX proportions (x100)',main=ii,xaxs='i',las=1)
     thisProts<-read.csv(protFiles[colnames(thisLtmChx)[1]],stringsAsFactors=FALSE)
     thisProts<-thisProts[tolower(thisProts$name)!='pol',]
     thisSplices<-read.table(spliceFiles[colnames(thisLtmChx)[1]])
     thisDonors<-unique(thisSplices$V2)
     thisAcceptors<-unique(thisSplices$V3)
     abline(v=thisProts$tss-12,col='#FF000033')
-    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF')
-    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00')
+    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF',tcl=-.3)
+    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00',tcl=-.3)
     thisSplices<-read.table(spliceFiles[colnames(thisLtmChx)[1]],header=FALSE)
     #abline(v=unique(thisSplices[,2]),col='#00FF0033',lty=2)
     #abline(v=unique(thisSplices[,3]),col='#0000FF33',lty=2)
     box()
     #apply(thisLtmChx[,1:2],2,points,col='#00000099')
-    points(apply(thisLtmChx[,1:2],1,mean),col='#00000099')
+    cols<-ifelse(thisCodons[1:nrow(thisLtmChx)+12,'start'],'#FF000077',ifelse(thisCodons[1:nrow(thisLtmChx)+12,'startLike'],'#0000FF77',NA))
+    points(apply(thisLtmChx[,1:2],1,mean),col='#00000099',bg=cols,pch=21)
     ylim=range(thisLtmChx[,3:4])
-    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between moving LTM and CHX proportions',main=ii)
+    plot(1,1,type='l',ylim=ylim,xlim=xlim,xlab='Genome position',ylab='Difference between moving\nLTM and CHX proportions (x100)',main=ii,xaxs='i',las=1)
     abline(v=thisProts$tss-12,col='#FF000033')
-    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF')
-    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00')
-    abline(h=.05,lty=2)
+    axis(1,thisDonors,rep('',length(thisDonors)),col='#0000FF',tcl=-.3)
+    axis(1,thisAcceptors,rep('',length(thisAcceptors)),col='#00FF00',tcl=-.3)
+    #abline(h=.05,lty=2)
     #abline(v=unique(thisSplices[,2]),col='#00FF0033',lty=2)
     #abline(v=unique(thisSplices[,3]),col='#0000FF33',lty=2)
     box()
     #apply(thisLtmChx[,3:4],2,points,col='#00000099')
-    points(apply(thisLtmChx[,3:4],1,mean),col='#00000099')
+    points(apply(thisLtmChx[,3:4],1,mean),col='#00000099',pch=21,bg=cols)
     #write csv
     out<-as.data.frame(thisLtmChx)
     colnames(out)[1:2]<-c('ltmChx1','ltmChx2')
@@ -269,7 +289,7 @@ pdf('out/virus_ltmChx.pdf',width=20)
     thisGenome<-genomes[ii]
     out$codon<-substring(thisGenome,out$adjustPos,out$adjustPos+2)
     #out$ltmGreater1<-out$ltmChx1>.001&out$ltmChx2>.001
-    out$movingGreaterCut<-out$movingLtmChx1>.05&out$movingLtmChx2>.05
+    out$movingGreaterCut<-out$movingLtmChx1/100>.05&out$movingLtmChx2/100>.05
     print(summary(out$movingGreaterCut))
     print(out[out$movingGreaterCut,'adjustPos'])
     #print(summary(out$ltmGreater1))
@@ -316,19 +336,6 @@ for(ii in unique(sampleNames)){
 dev.off()
 
 
-startLike<-unlist(lapply(1:3,function(pos)lapply(c('A','T','C','G'),function(base){out<-'ATG';substring(out,pos,pos)<-base;out})))
-startLike<-startLike[startLike!='ATG']
-
-genomeFiles<-list.files('data/','fasta$',recursive=TRUE)
-genomes<-sapply(sprintf('data/%s',genomeFiles),function(x)read.fa(x)$seq)
-#names(genomes)<-sub('data/','',dirname(genomeFiles))
-names(genomes)<- sapply(file.path('data',dirname(genomeFiles)),function(x)sub('_trim.fastq.gz','',sub('^[^_]+_','',list.files(x,'Total1.*fastq.gz'))))
-
-genomeStarts<-lapply(genomes,function(dna){
-  pos<-seq(1,nchar(dna)-2)
-  nmers<-substring(dna,pos,pos+2)
-  return(data.frame('pos'=pos,'nmers'=nmers,'start'=nmers=='ATG','startLike'=nmers %in% startLike,stringsAsFactors=FALSE))
-})
 
 viruses<-sub('^[^_]+_','',names(bp28))
 treatments<-sub('[0-9]_.*$','',names(bp28))

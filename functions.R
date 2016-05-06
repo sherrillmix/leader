@@ -44,6 +44,18 @@ getCdFives<-function(cds,fives){
   return(list('cds'=cds,'fives'=fives))
 }
 
+pullFiveRegion<-function(five,targetFiles){
+  strand<-strand(five)@values[1]
+  if(any(strand(five)!=strand))stop(simpleError('Strand mismatch'))
+  fiveN<-sum(width(five))
+  regs<-list(sapply(five,coordToReg))
+  #if(strand=='+')revFunc<-function(y)lapply(y,function(z)z) else revFunc<-function(y)lapply(y,function(z)rev(z))
+  #humanStarts<-do.call(rbind,lapply(sprintf("%s/%s",dataDir,targetFiles),function(x,revFunc,...)do.call(c,revFunc(getRegionStarts(x,regs,strand=strand,sizeRange=27:29))),revFunc=revFunc))
+  humanStarts<-do.call(rbind,lapply(targetFiles,function(x)do.call(c,naFillRegs(x,regs,0,strand=strand,sizeRange=27:29))))
+  rownames(humanStarts)<-names(targetFiles)
+  return(humanStarts)
+}
+
 pullCdFiveRegion<-function(five,cd,targetFiles,windowWidth=40,...){
   cat('.')
   strand<-strand(cd)@values[1]

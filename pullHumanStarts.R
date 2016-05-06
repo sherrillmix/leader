@@ -21,6 +21,9 @@ targets<-sprintf('%s/%s',dataDir,targetFiles)
 names(targets)<-names(targetFiles)
 startCounts<-cacheOperation('work/humanStartCounts.Rdat',mcmapply,pullCdFiveRegion,fives,cds,SIMPLIFY=FALSE,mc.cores=18,MoreArgs=list(targetFiles=targets,windowWidth=windowWidth))
 
+fiveCounts<-cacheOperation('work/fiveStartCounts.Rdat',cleanMclapply,fives,12,pullFiveRegion,targetFiles=targets,extraCode='library(dnar);library(GenomicRanges);source("functions.R");')
+cdsCounts<-cacheOperation('work/cdsStartCounts.Rdat',cleanMclapply,cds,12,pullFiveRegion,targetFiles=targets,extraCode='library(dnar);library(GenomicRanges);source("functions.R");')
+
 
 allCounts<-do.call(abind,c(startCounts,list(along=3)))
 treatCounts<-apply(allCounts,1,sum,na.rm=TRUE)
@@ -122,5 +125,7 @@ for(ii in names(drugData)){
   write.csv(drugData[[ii]],sprintf('out/data_%s.csv',ii))
 }
 
+
+fiveTotals<-sapply(fiveCounts,function(x)sum(x[grepl('Total',rownames(x)),]))
 
 
