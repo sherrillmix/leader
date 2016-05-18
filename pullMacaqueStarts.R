@@ -12,7 +12,7 @@ sample<-sub('^[^_]+_','',names(allRnaFiles))
 targetFiles<-allRnaFiles[grepl('_SIV_',allRnaFiles)]#&!grepl('^Total',allRnaFiles)])
 
 #getChromInfoFromUCSC('rheMac3')
-if(!exists('rheRef'))rheRef <- makeTxDbFromUCSC( genome = "rheMac3" , tablename = "refGene")
+if(!exists('rheRef'))rheRef <- cacheOperation('work/rheMac3_refGene.Rdat',makeTxDbFromUCSC, genome = "rheMac3" , tablename = "refGene")
 #downloaded from ucsc (should be a cleaner way to do this)
 idLookup<-id2name(rheRef,'tx')
 geneLookup<-read.table('ref/rheMac3_refSeq.tsv.gz',stringsAsFactors=FALSE)
@@ -149,6 +149,15 @@ countBreakout<-lapply(unique(viruses),function(virus){
   return(out)
 })
 names(countBreakout)<-unique(viruses)
+
+
+startCoords<-sapply(fives[selector],function(x){
+  strand<-strand(x)@values[1]
+  coord<-ifelse(strand=='-',end(x)[1],start(x)[1])
+  chr<-as.character(seqnames(x)@values[1])
+  out<-sprintf('%s:%s%s',chr,coord,strand)
+})
+
 drugData<-lapply(countBreakout,function(counts){
   totals<-do.call(cbind,lapply(counts,function(x)apply(x,1,sum)))
   colnames(totals)<-sprintf('total_%s',colnames(totals))
@@ -160,7 +169,7 @@ drugData<-lapply(countBreakout,function(counts){
   },props,names(props),SIMPLIFY=FALSE))
   sum3<-do.call(cbind,lapply(props,function(count)apply(count[,as.character(seq(-9,30,3))],1,sum)))
   colnames(sum3)<-sprintf('sum3_%s',colnames(sum3))
-  out<-cbind(propSubset,totals,sum3)
+  out<-cbind('start'=startCoords,propSubset,totals,sum3)
   return(out)
 })
 for(ii in names(drugData)){
